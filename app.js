@@ -1,6 +1,4 @@
-// ======= Firebase config =======
-// Replace this with your own Firebase project config
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// ===== Firebase config =====
 const firebaseConfig = {
   apiKey: "AIzaSyD8H7djMIWuXB8f0t37S0VwL8xm39jaWdI",
   authDomain: "dheechat-1258a.firebaseapp.com",
@@ -16,25 +14,21 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// ======= DOM Elements =======
+// ===== DOM elements =====
 const messagesDiv = document.getElementById("messages");
 const nameInput = document.getElementById("nameInput");
 const messageInput = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
 
-// ======= Send message =======
+// ===== Send message =====
 sendBtn.onclick = function() {
   const name = nameInput.value.trim();
   const message = messageInput.value.trim();
 
-  // Prevent empty name or message
-  if (!name) {
-    alert("Please enter your name!");
-    return;
-  }
+  if (!name) return alert("Enter your name");
   if (!message) return;
 
-  // Push message to "messages" node
+  // Push message to fixed "messages" path
   db.ref("messages").push({
     name,
     message,
@@ -44,27 +38,20 @@ sendBtn.onclick = function() {
   messageInput.value = "";
 };
 
-// ======= Listen for new messages =======
+// ===== Listen for messages =====
 db.ref("messages").orderByChild("timestamp").on("child_added", function(snapshot) {
   const msg = snapshot.val();
-
-  // Create message bubble
   const div = document.createElement("div");
+  div.textContent = `${msg.name}: ${msg.message}`;
   div.classList.add("message");
 
-  // Check if message is from the current user
+  // Optional: color code your messages
   if (msg.name === nameInput.value.trim()) {
     div.classList.add("my-message");
   } else {
     div.classList.add("other-message");
   }
 
-  // Add message text
-  div.textContent = `${msg.name}: ${msg.message}`;
-
   messagesDiv.appendChild(div);
-
-  // Scroll to bottom
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
 });
-
