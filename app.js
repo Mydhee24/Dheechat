@@ -1,5 +1,6 @@
 // ======= Firebase config =======
 // Replace this with your own Firebase project config
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyD8H7djMIWuXB8f0t37S0VwL8xm39jaWdI",
   authDomain: "dheechat-1258a.firebaseapp.com",
@@ -7,7 +8,8 @@ const firebaseConfig = {
   projectId: "dheechat-1258a",
   storageBucket: "dheechat-1258a.firebasestorage.app",
   messagingSenderId: "893019112248",
-  appId: "1:893019112248:web:9d813c2339311f74f5f7cd"
+  appId: "1:893019112248:web:9d813c2339311f74f5f7cd",
+  measurementId: "G-GHHWSG2HFV"
 };
 
 // Initialize Firebase
@@ -65,3 +67,4 @@ db.ref("messages").orderByChild("timestamp").on("child_added", function(snapshot
   // Scroll to bottom
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
 });
+
