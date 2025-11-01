@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dhee Chat App</title>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial; max-width: 400px; margin: 40px auto; }
+    #messages { border: 1px solid #ccc; height: 300px; overflow-y: scroll; padding: 10px; }
+    input, button { padding: 8px; margin: 5px 0; width: 100%; }
+  </style>
+</head>
+<body>
+  <h2>💬 Dhee Chat</h2>
+  <div id="messages"></div>
+  <input id="nameInput" placeholder="Your name">
+  <input id="messageInput" placeholder="Your message">
+  <button id="sendBtn">Send</button>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js"></script>
+
+  <script src="app.js"></script>
+</body>
+</html>
