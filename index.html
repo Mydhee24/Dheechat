@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Secure Multi-User Chat</title>
-    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -61,13 +60,11 @@
 
     <div id="chat-app" class="flex flex-col bg-primary-dark shadow-2xl rounded-lg overflow-hidden w-full h-full md:h-[90vh]">
 
-        <!-- Login Screen -->
         <div id="login-screen" class="flex flex-col items-center justify-center p-8 text-center flex-grow">
             <h2 class="text-4xl font-extrabold mb-4 text-accent-blue">Secure Chat Login</h2>
             <p class="text-gray-400 mb-8 max-w-sm">Sign in with your Google account to join the conversation and identify yourself by your Gmail address.</p>
             <button id="google-sign-in-button" 
                     class="flex items-center justify-center bg-google-red hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl transition duration-300 shadow-xl transform hover:scale-[1.03] active:scale-95">
-                <!-- Google Icon SVG -->
                 <svg class="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M22.56 12.25c0-.78-.07-1.5-.2-2.2H12v4.16h5.88c-.26 1.42-1.04 2.68-2.3 3.53l-2.45 2.02v3.09h3.76c2.2-2.03 3.57-5.01 3.57-8.2zm-12.72 10.15c2.94 0 5.46-1.04 7.28-2.8l-3.76-3.09c-1.04.7-2.36 1.13-3.86 1.13-2.98 0-5.5-1.9-6.36-4.49H3.7v3.08c1.78 3.51 5.38 5.97 9.08 5.97zM4.3 9.4c-.16-.5-.25-1.03-.25-1.58s.09-1.08.25-1.58V3.24H.54c-.67 1.34-1.04 2.87-1.04 4.58s.37 3.24 1.04 4.58l3.76-3.08zM12 3.86c1.82 0 3.44.62 4.74 1.84l3.29-3.29C17.46.74 14.8.0 12.0.0c-3.7 0-7.3 2.46-9.08 5.97l3.76 3.08C6.5 5.76 9.02 3.86 12 3.86z"/>
                 </svg>
@@ -75,23 +72,65 @@
             </button>
         </div>
 
-        <!-- Chat Screen -->
         <div id="chat-screen" class="hidden flex-col flex-grow">
-            <!-- Header Section -->
-            <header class="bg-secondary-dark p-4 shadow-xl flex justify-between items-center z-10">
-                <h1 class="text-xl font-bold text-accent-green truncate">
-                    Welcome, <span id="user-email-display" class="font-normal text-sm"></span>
-                </h1>
-                <button id="sign-out-button"
-                        class="text-xs text-gray-400 hover:text-red-500 transition duration-200 p-2 rounded-lg">
-                    Sign Out
-                </button>
+            
+            <header class="bg-secondary-dark p-4 shadow-xl flex justify-between items-center z-20 relative">
+                <div class="flex items-center">
+                    <button id="menu-button"
+                            class="p-2 rounded-full hover:bg-gray-700 transition duration-200 focus:outline-none mr-3">
+                        <svg class="w-6 h-6 text-gray-100" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                    <h1 class="text-xl font-bold text-accent-green truncate">
+                        Public Chat
+                    </h1>
+                </div>
+                
+                <div class="flex items-center">
+                    <span id="user-email-display" class="font-normal text-sm text-gray-400 mr-4 hidden md:block truncate max-w-xs"></span>
+                    <button id="sign-out-button"
+                            class="text-xs text-gray-400 hover:text-red-500 transition duration-200 p-2 rounded-lg">
+                        Sign Out
+                    </button>
+                </div>
             </header>
 
-            <!-- Chat Messages Container -->
+            <div id="side-menu" 
+                class="fixed inset-0 z-30 bg-black bg-opacity-70 transition-opacity duration-300 opacity-0 pointer-events-none md:w-full">
+                
+                <div class="absolute left-0 top-0 h-full w-64 bg-primary-dark shadow-2xl transform -translate-x-full transition-transform duration-300 flex flex-col">
+                    <div class="p-4 bg-secondary-dark flex justify-between items-center border-b border-gray-700">
+                        <h3 class="text-lg font-semibold text-white">Menu & Contacts</h3>
+                        <button id="close-menu-button" class="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="p-4 border-b border-gray-700">
+                        <p class="text-sm text-gray-400 mb-2">Logged in as:</p>
+                        <p id="menu-user-email" class="text-white font-medium break-all"></p>
+                        <button id="clear-public-chat-button"
+                                class="mt-4 w-full text-center py-2 px-3 text-sm rounded-lg bg-google-red hover:bg-red-700 transition duration-200 text-white font-semibold">
+                            Clear Public Chat History
+                        </button>
+                    </div>
+
+                    <div class="p-4 flex-grow overflow-y-auto">
+                        <h4 class="text-md font-semibold text-accent-green mb-3">Recent Contacts (P2P ready)</h4>
+                        <div id="contact-list" class="space-y-2">
+                            <div class="text-sm text-gray-500 p-2 border border-gray-800 rounded-lg">
+                                Contacts will appear here once Private Messaging logic is added.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <main id="chat-messages" class="chat-container flex-grow p-4 space-y-4"></main>
 
-            <!-- Footer/Input Section -->
             <footer class="bg-secondary-dark p-4 shadow-2xl z-10">
                 <div id="loading-indicator" class="text-center text-accent-blue mb-2 hidden">
                     <div class="animate-spin inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full" role="status"></div>
@@ -111,11 +150,11 @@
         </div>
     </div>
 
-    <!-- Firebase SDK Imports (v12.5.0) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, setLogLevel } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+        // UPDATED: Added getDocs and deleteDoc for the Clear Chat feature
+        import { getFirestore, collection, addDoc, onSnapshot, query, setLogLevel, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
         // =========================================================================
         // ✅ UPDATED: Your New Firebase Configuration (from dhee-chat-e14bc)
@@ -163,6 +202,15 @@
         const userEmailDisplay = document.getElementById('user-email-display');
         const loadingIndicator = document.getElementById('loading-indicator');
 
+        // --- NEW MENU ELEMENTS ---
+        const menuButton = document.getElementById('menu-button');
+        const sideMenu = document.getElementById('side-menu');
+        const closeMenuButton = document.getElementById('close-menu-button');
+        const menuUserEmail = document.getElementById('menu-user-email');
+        const clearPublicChatButton = document.getElementById('clear-public-chat-button');
+        const contactList = document.getElementById('contact-list');
+        // -------------------------
+
         // --- Utility Functions ---
 
         // Exponential backoff retry for network operations
@@ -186,6 +234,27 @@
             loginScreen.classList.toggle('hidden', showChat);
             chatScreen.classList.toggle('hidden', !showChat);
         }
+
+        // --- Menu Control Functions (NEW) ---
+        function openMenu() {
+            sideMenu.classList.remove('opacity-0', 'pointer-events-none');
+            // Remove the translation class from the inner panel
+            sideMenu.querySelector('div').classList.remove('-translate-x-full'); 
+        }
+
+        function closeMenu() {
+            sideMenu.classList.add('opacity-0', 'pointer-events-none');
+            // Add the translation class back to the inner panel
+            sideMenu.querySelector('div').classList.add('-translate-x-full');
+        }
+
+        function handleMenuClick(event) {
+            // Close menu if user clicks the dark overlay (the sideMenu container itself)
+            if (event.target === sideMenu) {
+                closeMenu();
+            }
+        }
+        // -------------------------------------
 
         // --- Authentication Logic ---
 
@@ -218,7 +287,10 @@
                     currentUserId = user.uid;
                     currentUserEmail = user.email;
 
+                    // Display user email in header and menu panel (UPDATED)
                     userEmailDisplay.textContent = currentUserEmail || 'Signed In';
+                    menuUserEmail.textContent = currentUserEmail || 'Signed In'; 
+                    
                     switchView(true); // Show chat screen
 
                     // Enable input controls
@@ -235,6 +307,7 @@
                     currentUserEmail = null;
                     switchView(false); // Show login screen
                     chatMessagesContainer.innerHTML = ''; // Clear chat history
+                    closeMenu(); // Ensure menu is closed
                 }
             });
         }
@@ -357,6 +430,39 @@
             }
         }
 
+        // Function to clear all messages in the public chat (NEW)
+        async function handleClearPublicChat() {
+            if (!confirm("Are you sure you want to permanently delete ALL messages from the Public Chat? This cannot be undone.")) {
+                return;
+            }
+
+            try {
+                const messagesCollectionPath = `artifacts/${appId}/public/data/messages`;
+                const colRef = collection(db, messagesCollectionPath);
+                
+                // Retrieve all documents
+                const snapshot = await getDocs(query(colRef));
+                
+                const deletePromises = [];
+                snapshot.forEach((doc) => {
+                    // Collect promises to delete each document
+                    deletePromises.push(deleteDoc(doc.ref));
+                });
+                
+                // Wait for all deletions to complete
+                await Promise.all(deletePromises);
+                console.log(`Successfully deleted ${deletePromises.length} public messages.`);
+                closeMenu();
+                // Firestore listener will automatically clear the UI after deletion is complete
+                alert("Public Chat History Cleared!");
+
+            } catch (error) {
+                console.error("Error clearing public chat:", error);
+                alert("Failed to clear chat. You may not have the necessary security permissions.");
+            }
+        }
+
+
         // --- Initialization and Event Setup ---
 
         async function setupApp() {
@@ -386,11 +492,17 @@
             }
         }
 
-        // --- Event Listeners ---
+        // --- Event Listeners (UPDATED) ---
         googleSignInButton.addEventListener('click', handleGoogleSignIn);
         signOutButton.addEventListener('click', handleSignOut);
         sendButton.addEventListener('click', sendMessage);
         
+        // New Menu Listeners
+        menuButton.addEventListener('click', openMenu);
+        closeMenuButton.addEventListener('click', closeMenu);
+        sideMenu.addEventListener('click', handleMenuClick);
+        clearPublicChatButton.addEventListener('click', handleClearPublicChat);
+
         messageInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !sendButton.disabled) {
                 e.preventDefault();
