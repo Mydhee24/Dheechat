@@ -1,13 +1,13 @@
-// Replace this with your own Firebase config:
 const firebaseConfig = {
-  apiKey: "AIzaSyD8H7djMIWuXB8f0t37S0VwL8xm39jaWdI",
-  authDomain: "dheechat-1258a.firebaseapp.com",
-  databaseURL: "https://dheechat-1258a-default-rtdb.firebaseio.com/",
-  projectId: "dheechat-1258a",
-  storageBucket: "dheechat-1258a.appspot.com",
-  messagingSenderId: "893019112248",
-  appId: "1:893019112248:web:9d813c2339311f74f5f7cd"
+  apiKey: "YOUR_API_KEY",
+  authDomain: "your-project-id.firebaseapp.com",
+  databaseURL: "https://your-project-id-default-rtdb.firebaseio.com",
+  projectId: "your-project-id",
+  storageBucket: "your-project-id.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abcdef"
 };
+
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
@@ -17,22 +17,27 @@ const messageInput = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
 
 sendBtn.onclick = function() {
-  const name = nameInput.value;
-  const message = messageInput.value;
+  const name = nameInput.value.trim();
+  const message = messageInput.value.trim();
   if (name && message) {
-    db.ref("messages").push({
-      name: name,
-      message: message
-    });
+    db.ref("messages").push({ name, message });
     messageInput.value = "";
   }
 };
 
+// Listen for new messages
 db.ref("messages").on("child_added", function(snapshot) {
   const msg = snapshot.val();
   const div = document.createElement("div");
-  div.textContent = msg.name + ": " + msg.message;
+  div.classList.add("message");
+
+  if (msg.name === nameInput.value.trim()) {
+    div.classList.add("my-message");
+  } else {
+    div.classList.add("other-message");
+  }
+
+  div.textContent = `${msg.name}: ${msg.message}`;
   messagesDiv.appendChild(div);
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
-
 });
