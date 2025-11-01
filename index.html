@@ -111,23 +111,23 @@
         </div>
     </div>
 
-    <!-- Firebase SDK Imports -->
+    <!-- Firebase SDK Imports (v12.5.0) -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, setLogLevel } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
         // =========================================================================
-        // 🚨 IMPORTANT: REPLACE THESE PLACEHOLDERS WITH YOUR ACTUAL FIREBASE CONFIG 🚨
-        // This configuration is PUBLIC and required for Google Sign-In outside the Canvas environment.
+        // ✅ UPDATED: Your New Firebase Configuration (from dhee-chat-e14bc)
         // =========================================================================
         const EXTERNAL_FIREBASE_CONFIG = {
-            apiKey: "AIzaSyD8H7djMIWuXB8f0t37S0VwL8xm39jaWdI",
-            authDomain: "dheechat-1258a.firebaseapp.com",
-            projectId: "dheechat-1258a",
-            storageBucket: "dheechat-1258a.firebasestorage.app",
-            messagingSenderId: "893019112248",
-            appId: "1:893019112248:web:9d813c2339311f74f5f7cd"
+            apiKey: "AIzaSyAwfV2UkHnFJOET4yQpxXkCItP2FmTG2g8",
+            authDomain: "dhee-chat-e14bc.firebaseapp.com",
+            projectId: "dhee-chat-e14bc",
+            storageBucket: "dhee-chat-e14bc.firebasestorage.app",
+            messagingSenderId: "1091790414441",
+            appId: "1:1091790414441:web:42bfa96e6b3eea8bdff8f8",
+            // measurementId is ignored as Analytics is not imported or used for chat logic
         };
         // =========================================================================
         
@@ -144,10 +144,6 @@
             // Running on GitHub Pages or locally
             firebaseConfig = EXTERNAL_FIREBASE_CONFIG;
             appId = firebaseConfig.projectId || 'chat-default-id';
-            // Check if config placeholders were replaced
-            if (firebaseConfig.apiKey === "AIzaSyD8H7djMIWuXB8f0t37S0VwL8xm39jaWdI") {
-                console.error("WARNING: Firebase configuration placeholders not replaced. Google Sign-In will fail.");
-            }
         }
         
         // --- Global Firebase Instances and User State ---
@@ -196,12 +192,13 @@
         async function handleGoogleSignIn() {
             const provider = new GoogleAuthProvider();
             try {
+                // IMPORTANT: signInWithPopup requires the domain to be authorized in Firebase Console
                 await signInWithPopup(auth, provider);
                 // Auth state change listener will handle view switch
             } catch (error) {
                 console.error("Google Sign-In failed:", error);
-                // Display error message to the user (instead of alert)
-                userEmailDisplay.textContent = 'Login Error!';
+                // Simple error display (replace with modal for better UX)
+                userEmailDisplay.textContent = 'Login Error! Check console & domain settings.';
             }
         }
 
@@ -407,6 +404,3 @@
     </script>
 </body>
 </html>
-
-
-
