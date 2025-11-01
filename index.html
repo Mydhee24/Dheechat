@@ -50,7 +50,8 @@
         }
         @media (min-width: 768px) {
             #chat-app {
-                max-width: 700px;
+                /* Reduced from 665px to 600px */
+                max-width: 600px; 
                 margin: 0 auto;
             }
         }
@@ -161,7 +162,6 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
-        // UPDATED: Added doc, limit, orderBy for querying and better P2P logic
         import { getFirestore, collection, addDoc, onSnapshot, query, setLogLevel, getDocs, deleteDoc, setDoc, doc, limit, orderBy } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
         // =========================================================================
@@ -198,6 +198,11 @@
         let currentChatType = 'public'; // 'public' or 'private'
         let currentRecipient = null; // { userId, email } for private chat
         let unsubscribeMessages = null; // Function to stop the message listener
+        
+        // Global state for notifications
+        let lastMessageTimestamp = 0; 
+        let notificationPermission = 'default';
+
 
         // --- UI Elements ---
         const loginScreen = document.getElementById('login-screen');
@@ -244,6 +249,12 @@
             chatScreen.classList.toggle('hidden', !showChat);
         }
 
+        // NEW: Extracts the name part of the email for display
+        function getUserDisplayName(email) {
+            if (!email) return 'Anonymous';
+            return email.split('@')[0];
+        }
+
         // --- Menu Control Functions ---
         function openMenu() {
             sideMenu.classList.remove('opacity-0', 'pointer-events-none');
@@ -262,9 +273,20 @@
         }
         // -------------------------------------
 
+        // --- Notifications (NEW) ---
+        function requestNotificationPermission() {
+            if ('Notification' in window) {
+                Notification.requestPermission().then(permission => {
+                    notificationPermission = permission;
+                    console.log("Notification permission:", permission);
+                }).catch(error => {
+                    console.error("Error requesting notification permission:", error);
+                });
+            }
+        }
+
         // --- Authentication and User Setup Logic ---
         
-        // NEW: Creates or updates a user document in Firestore upon login
         async function upsertUser(user) {
             if (!user.uid || !user.email) return;
             try {
@@ -273,14 +295,14 @@
                 await setDoc(userDocRef, {
                     userId: user.uid,
                     email: user.email,
+                    displayName: getUserDisplayName(user.email), // Save the display name
                     lastSeen: Date.now()
-                }, { merge: true }); // Use merge:true to update without overwriting other fields
+                }, { merge: true });
             } catch (error) {
                 console.error("Error upserting user data:", error);
             }
         }
         
-        // NEW: Fetches and displays all users as contacts
         function listenForContacts() {
             // Path: /users
             const usersRef = collection(db, 'users');
@@ -288,7 +310,6 @@
                 contactList.innerHTML = '';
                 snapshot.forEach(doc => {
                     const contact = doc.data();
-                    // Don't show the current user as a contact
                     if (contact.userId !== currentUserId) {
                         renderContact(contact);
                     }
@@ -306,8 +327,11 @@
         
         function renderContact(contact) {
             const contactDiv = document.createElement('div');
-            contactDiv.className = `p-3 rounded-lg cursor-pointer bg-secondary-dark hover:bg-gray-700 transition duration-150 break-all`;
-            contactDiv.innerHTML = `<p class="text-sm font-semibold">${contact.email}</p>`;
+            const isSelected = currentRecipient && currentRecipient.userId === contact.userId;
+            
+            contactDiv.className = `p-3 rounded-lg cursor-pointer transition duration-150 break-all ${isSelected ? 'bg-accent-green bg-opacity-30 border border-accent-green' : 'bg-secondary-dark hover:bg-gray-700'}`;
+            // Use display name instead of full email
+            contactDiv.innerHTML = `<p class="text-sm font-semibold">${getUserDisplayName(contact.email)}</p>`; 
             contactDiv.setAttribute('data-user-id', contact.userId);
             contactDiv.setAttribute('data-email', contact.email);
             
@@ -315,7 +339,6 @@
                 const userId = contactDiv.getAttribute('data-user-id');
                 const email = contactDiv.getAttribute('data-email');
                 
-                // Switch to the private chat with this user
                 switchToPrivateChat({ userId, email });
                 closeMenu();
             });
@@ -323,7 +346,6 @@
             contactList.appendChild(contactDiv);
         }
         
-        // --- Authentication Listeners remain the same ---
         async function handleGoogleSignIn() {
             const provider = new GoogleAuthProvider();
             try {
@@ -349,8 +371,9 @@
                     currentUserId = user.uid;
                     currentUserEmail = user.email;
 
-                    upsertUser(user); // NEW: Save/update user data
-                    listenForContacts(); // NEW: Start listing contacts
+                    upsertUser(user); 
+                    listenForContacts(); 
+                    requestNotificationPermission(); // Request permission upon login
 
                     userEmailDisplay.textContent = currentUserEmail || 'Signed In';
                     menuUserEmail.textContent = currentUserEmail || 'Signed In'; 
@@ -361,13 +384,11 @@
                     messageInput.disabled = false;
                     messageInput.focus();
                     
-                    // Start in public chat by default
                     switchToPublicChat(); 
 
                 } else {
                     currentUserId = null;
                     currentUserEmail = null;
-                    // Stop message listener when signed out
                     if (unsubscribeMessages) {
                         unsubscribeMessages();
                         unsubscribeMessages = null;
@@ -380,11 +401,9 @@
         }
 
 
-        // --- Chat Switching Logic (NEW) ---
+        // --- Chat Switching Logic ---
         
-        // Helper to generate a unique chat ID for two users
         function getPrivateChatId(userId1, userId2) {
-            // Sort UIDs alphabetically to ensure the ID is always the same regardless of who starts the chat
             return [userId1, userId2].sort().join('_');
         }
 
@@ -394,16 +413,19 @@
             currentRecipient = null;
             chatTitle.textContent = 'Public Chat';
             clearCurrentChatButton.textContent = 'Clear Public Chat History';
-            listenForMessages(); // Start public listener
+            listenForMessages(); 
+            listenForContacts(); 
         }
         
         function switchToPrivateChat(recipient) {
             if (unsubscribeMessages) unsubscribeMessages();
             currentChatType = 'private';
             currentRecipient = recipient;
-            chatTitle.textContent = `Private Chat with ${recipient.email.split('@')[0]}`;
-            clearCurrentChatButton.textContent = `Clear Chat with ${recipient.email.split('@')[0]}`;
-            listenForMessages(); // Start private listener
+            // Use display name for the chat title
+            chatTitle.textContent = `Private Chat with ${getUserDisplayName(recipient.email)}`; 
+            clearCurrentChatButton.textContent = `Clear Chat with ${getUserDisplayName(recipient.email)}`;
+            listenForMessages(); 
+            listenForContacts(); 
         }
 
         // --- Message Rendering and Firestore ---
@@ -427,9 +449,9 @@
                 : 'bg-secondary-dark text-gray-100 rounded-tl-none'
             }`;
             
-            // Username/Email
+            // Username/Email - Use Display Name
             const emailSpan = document.createElement('span');
-            emailSpan.textContent = message.email || 'Anonymous';
+            emailSpan.textContent = getUserDisplayName(message.email) || 'Anonymous'; 
             emailSpan.className = `block text-xs font-bold mb-1 ${isMe ? 'text-blue-200' : 'text-accent-green'}`;
             bubble.appendChild(emailSpan);
             
@@ -457,38 +479,53 @@
             let messagesCollectionPath;
             
             if (currentChatType === 'public') {
-                // Public Path: /artifacts/{appId}/public/data/messages
                 messagesCollectionPath = `artifacts/${appId}/public/data/messages`;
                 
             } else if (currentChatType === 'private' && currentRecipient) {
-                // Private Path: /private_chats/{chatId}/messages
                 const chatId = getPrivateChatId(currentUserId, currentRecipient.userId);
                 messagesCollectionPath = `private_chats/${chatId}/messages`;
             } else {
-                // Fallback / Log error
                 chatMessagesContainer.innerHTML = '<div class="text-red-500 text-center p-4">Error: Invalid chat state.</div>';
                 return;
             }
             
             const colRef = collection(db, messagesCollectionPath);
             
-            // Query: Limit to 100 messages, ordered by timestamp
             const messagesQuery = query(colRef, orderBy('timestamp', 'asc'), limit(100));
 
-            // Set up real-time listener and save the unsubscribe function
+            if (unsubscribeMessages) unsubscribeMessages(); // Ensure previous listener is stopped
+
             unsubscribeMessages = onSnapshot(messagesQuery, (snapshot) => {
                 
-                // Check if we were at the bottom before rendering
+                // 1. Handle Notifications (NEW)
+                if (!document.hasFocus()) {
+                    snapshot.docChanges().forEach(change => {
+                        if (change.type === 'added') {
+                            const message = change.doc.data();
+                            
+                            // Only notify for new messages not sent by me
+                            if (message.userId !== currentUserId) { 
+                                if (notificationPermission === 'granted') {
+                                    const title = currentChatType === 'public' ? 'New Public Message' : `New Private Message from ${getUserDisplayName(message.email)}`;
+                                    new Notification(title, {
+                                        body: message.text,
+                                        // icon: '/favicon.ico' // Uncomment and adjust if you have a favicon
+                                    });
+                                }
+                            }
+                        }
+                    });
+                }
+                
+                // 2. Render Messages
                 const shouldScroll = chatMessagesContainer.scrollHeight - chatMessagesContainer.scrollTop <= chatMessagesContainer.clientHeight + 50;
 
-                // Clear container and re-render
                 chatMessagesContainer.innerHTML = '';
                 snapshot.forEach(doc => {
                     const message = doc.data();
                     renderMessage(message, message.userId === currentUserId);
                 });
                 
-                // Only scroll if the user was near the bottom
                 if (shouldScroll) {
                     scrollToBottom();
                 }
@@ -509,7 +546,7 @@
                 const chatId = getPrivateChatId(currentUserId, currentRecipient.userId);
                 messagesCollectionPath = `private_chats/${chatId}/messages`;
             } else {
-                return; // Cannot send message if chat state is invalid
+                return;
             }
 
             try {
@@ -529,9 +566,8 @@
             }
         }
 
-        // Function to clear all messages in the currently active chat
         async function handleClearCurrentChat() {
-            let chatName = currentChatType === 'public' ? 'Public Chat' : `Chat with ${currentRecipient.email}`;
+            let chatName = currentChatType === 'public' ? 'Public Chat' : `Chat with ${getUserDisplayName(currentRecipient.email)}`;
             
             if (!confirm(`Are you sure you want to permanently delete ALL messages from ${chatName}? This cannot be undone.`)) {
                 return;
@@ -550,7 +586,9 @@
 
             try {
                 const colRef = collection(db, messagesCollectionPath);
-                const snapshot = await getDocs(query(colRef));
+                
+                // Fetch up to 500 documents for deletion
+                const snapshot = await getDocs(query(colRef, limit(500))); 
                 
                 if (snapshot.empty) {
                     alert(`${chatName} is already empty.`);
@@ -564,13 +602,20 @@
                 });
                 
                 await Promise.all(deletePromises);
+                
+                // Log success and check if more messages remain (for large chats)
                 console.log(`Successfully deleted ${deletePromises.length} messages from ${chatName}.`);
+                if (deletePromises.length >= 500) {
+                     alert(`Cleared ${deletePromises.length} messages. A large chat may require running the clear operation again.`);
+                } else {
+                     alert(`${chatName} History Cleared!`);
+                }
+                
                 closeMenu();
-                alert(`${chatName} History Cleared!`);
 
             } catch (error) {
-                console.error("Error clearing chat:", error);
-                alert("Failed to clear chat. Check console and ensure your security rules are correct.");
+                console.error("CRITICAL ERROR clearing chat:", error);
+                alert(`Failed to clear chat for ${chatName}. Please check the Firebase Console logs for security rule or permission errors.`);
             }
         }
 
@@ -612,7 +657,7 @@
         closeMenuButton.addEventListener('click', closeMenu);
         sideMenu.addEventListener('click', handleMenuClick);
         
-        // NEW Chat Switching/Clearing Listeners
+        // Chat Switching/Clearing Listeners
         switchToPublicChatButton.addEventListener('click', () => {
             switchToPublicChat();
             closeMenu();
