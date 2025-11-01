@@ -1,169 +1,70 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Firebase Messaging with Google Sign-In</title>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dheechat Firebase Auth</title>
     <style>
-        body { font-family: sans-serif; }
-        #login-section, #message-section { display: none; padding: 20px; border: 1px solid #ccc; margin-bottom: 10px; }
-        #message-section.active, #login-section.active { display: block; }
-        #googleSignInButton {
-            background-color: #4285F4;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 16px;
-            cursor: pointer;
-            border-radius: 5px;
-        }
-        #googleSignInButton img { vertical-align: middle; margin-right: 10px; }
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        div { margin-bottom: 10px; }
+        input { padding: 8px; margin-right: 5px; }
+        button { padding: 8px 15px; cursor: pointer; }
+        #message { margin-top: 20px; padding: 10px; border: 1px solid #ccc; background-color: #f9f9f9; }
+        #recaptcha-container { margin-top: 15px; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
-    <h1>My Firebase App</h1>
+    <h1>Dheechat User Authentication</h1>
 
-    <div id="login-section" class="active">
-        <h2>Welcome! Sign in to chat.</h2>
-        <button id="googleSignInButton">
-            <img width="20px" alt="Google sign-in" src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/512px-Google_%22G%22_Logo.svg.png" />
-            Sign in with Google
-        </button>
-        <p id="loginError" style="color: red;"></p>
-    </div>
+    <div id="authSection">
+        <!-- Phone Sign-in -->
+        <h2>Phone Number Sign-in / Registration</h2>
+        <div>
+            <input type="text" id="phoneNumberInput" placeholder="e.g., +11234567890">
+            <button id="sendOtpButton">Send OTP</button>
+        </div>
+        <div id="otpVerification" class="hidden">
+            <input type="text" id="otpInput" placeholder="Enter OTP">
+            <button id="verifyOtpButton">Verify OTP</button>
+        </div>
+        <div id="recaptcha-container"></div>
 
-    <div id="message-section">
-        <h2>Welcome, <span id="userNameDisplay"></span>!</h2>
-        <p>Start a new message:</p>
-        <input type="text" id="messageInput" placeholder="Type your message">
-        <button id="sendMessageButton">Send</button>
-        <button id="logoutButton">Logout</button>
-        <div id="messagesList">
-            <h3>Recent Messages:</h3>
-            <!-- Messages will appear here -->
+        <!-- First-time User Registration (after phone sign-in) -->
+        <div id="firstTimeUser" class="hidden">
+            <h2>Welcome! Register your profile.</h2>
+            <div>
+                <input type="text" id="usernameInput" placeholder="Choose a username">
+                <button id="registerUsernameButton">Register Username</button>
+            </div>
+            <h3>Optional: Link Email & Password</h3>
+            <div>
+                <input type="email" id="emailLinkInput" placeholder="Enter your email">
+                <input type="password" id="passwordLinkInput" placeholder="Choose a password">
+                <button id="linkEmailPasswordButton">Link Email/Password</button>
+            </div>
+        </div>
+
+        <!-- Email/Password Login (for linked accounts) -->
+        <h2>Email/Password Login</h2>
+        <div>
+            <input type="email" id="emailLoginInput" placeholder="Email">
+            <input type="password" id="passwordLoginInput" placeholder="Password">
+            <button id="emailLoginButton">Login with Email</button>
         </div>
     </div>
 
-    <script>
-        // Your Firebase project configuration (replace with your actual config)
-        const firebaseConfig = {
-            apiKey: "YOUR_API_KEY", // Get this from your Firebase project settings -> Project settings -> General
-            authDomain: "YOUR_PROJECT_ID.firebaseapp.com", // Example: "dheechat-1258a.firebaseapp.com"
-            projectId: "YOUR_PROJECT_ID", // Example: "dheechat-1258a"
-            storageBucket: "YOUR_PROJECT_ID.appspot.com",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID" // Get this from your Firebase project settings -> Project settings -> General -> Your apps
-        };
+    <div id="userInfo" class="hidden">
+        <h2>Logged In!</h2>
+        <p><strong>User ID:</strong> <span id="userId"></span></p>
+        <p><strong>Phone:</strong> <span id="userPhone"></span></p>
+        <p><strong>Email:</strong> <span id="userEmail"></span></p>
+        <p><strong>Username:</strong> <span id="userDbUsername"></span></p>
+        <button id="signOutButton">Sign Out</button>
+    </div>
 
-        // Initialize Firebase
-        const app = firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore(); // Assuming you're using Firestore for messages
+    <div id="message"></div>
 
-        const loginSection = document.getElementById('login-section');
-        const messageSection = document.getElementById('message-section');
-        const googleSignInButton = document.getElementById('googleSignInButton');
-        const loginError = document.getElementById('loginError');
-        const userNameDisplay = document.getElementById('userNameDisplay');
-        const messageInput = document.getElementById('messageInput');
-        const sendMessageButton = document.getElementById('sendMessageButton');
-        const logoutButton = document.getElementById('logoutButton');
-        const messagesList = document.getElementById('messagesList');
-
-        // Monitor authentication state changes
-        auth.onAuthStateChanged((user) => {
-            if (user) {
-                // User is signed in.
-                console.log("User signed in:", user.email, user.displayName);
-                loginSection.classList.remove('active');
-                messageSection.classList.add('active');
-                // Google users usually have a displayName, but email is a good fallback
-                userNameDisplay.textContent = user.displayName || user.email;
-                loginError.textContent = ''; // Clear any previous errors
-
-                // Start listening for messages here, or fetch initial messages
-                listenForMessages(); // Call the function to set up message listening
-            } else {
-                // User is signed out.
-                console.log("No user signed in.");
-                messageSection.classList.remove('active');
-                loginSection.classList.add('active');
-                userNameDisplay.textContent = '';
-                // Clear messages or other user-specific UI if necessary
-                messagesList.innerHTML = ''; // Clear displayed messages
-            }
-        });
-
-        // Handle Google Sign-In
-        googleSignInButton.addEventListener('click', async () => {
-            const provider = new firebase.auth.GoogleAuthProvider();
-            try {
-                await auth.signInWithPopup(provider);
-                // The onAuthStateChanged listener will handle the UI update
-            } catch (error) {
-                console.error("Google Sign-In Error:", error);
-                loginError.textContent = error.message;
-            }
-        });
-
-        // Handle logout
-        logoutButton.addEventListener('click', async () => {
-            try {
-                await auth.signOut();
-            } catch (error) {
-                console.error("Logout Error:", error);
-            }
-        });
-
-        // Function to send a message (using Firestore as per previous context)
-        sendMessageButton.addEventListener('click', async () => {
-            const messageText = messageInput.value.trim();
-            if (messageText && auth.currentUser) {
-                try {
-                    await db.collection("messages").add({
-                        text: messageText,
-                        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                        // Prioritize displayName, fallback to email if displayName is not available
-                        userName: auth.currentUser.displayName || auth.currentUser.email,
-                        userUid: auth.currentUser.uid // Store UID for security rules if needed
-                    });
-                    messageInput.value = ''; // Clear input
-                    console.log("Message sent!");
-                } catch (error) {
-                    console.error("Error sending message:", error);
-                }
-            } else if (!auth.currentUser) {
-                console.warn("Cannot send message: no user signed in.");
-            }
-        });
-
-        // Function to listen for new messages (Firestore example)
-        function listenForMessages() {
-             // Detach any previous listener to avoid duplicates if onAuthStateChanged fires multiple times
-            if (this.messageListener) {
-                this.messageListener(); // Call the unsubscribe function
-            }
-
-            // Listen for new messages, ordered by timestamp
-            this.messageListener = db.collection("messages").orderBy("timestamp", "asc").onSnapshot((snapshot) => {
-                messagesList.innerHTML = ''; // Clear previous messages
-                snapshot.forEach((doc) => {
-                    const data = doc.data();
-                    const messageElement = document.createElement('p');
-                    // Display the userName from the stored message data
-                    messageElement.textContent = `${data.userName || 'Anonymous'}: ${data.text}`;
-                    messagesList.appendChild(messageElement);
-                });
-                // Scroll to the bottom of the message list
-                messagesList.scrollTop = messagesList.scrollHeight;
-            }, (error) => {
-                console.error("Error listening to messages:", error);
-            });
-        }
-    </script>
+    <script type="module" src="app.js"></script> <!-- Your JavaScript/TypeScript code -->
 </body>
 </html>
