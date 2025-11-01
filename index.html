@@ -27,8 +27,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
         
         .chat-container {
-            /* Calculate height based on full screen minus header and footer/input area */
-            height: calc(100vh - 8rem); 
+            /* FIX: Removed manual height calculation. Flexbox will manage height. */
             overflow-y: auto;
             scroll-behavior: smooth;
         }
@@ -50,7 +49,7 @@
         }
         @media (min-width: 768px) {
             #chat-app {
-                /* Set to 600px as requested earlier */
+                /* Set to 600px */
                 max-width: 600px; 
                 margin: 0 auto;
             }
@@ -75,7 +74,7 @@
 
         <div id="chat-screen" class="hidden flex-col flex-grow">
             
-            <header class="bg-secondary-dark p-4 shadow-xl flex justify-between items-center z-20 relative">
+            <header class="bg-secondary-dark p-4 shadow-xl flex justify-between items-center z-20 relative flex-shrink-0">
                 <div class="flex items-center">
                     <button id="menu-button"
                             class="p-2 rounded-full hover:bg-gray-700 transition duration-200 focus:outline-none mr-3">
@@ -101,7 +100,7 @@
                 class="fixed inset-0 z-30 bg-black bg-opacity-70 transition-opacity duration-300 opacity-0 pointer-events-none md:w-full">
                 
                 <div class="absolute left-0 top-0 h-full w-64 bg-primary-dark shadow-2xl transform -translate-x-full transition-transform duration-300 flex flex-col">
-                    <div class="p-4 bg-secondary-dark flex justify-between items-center border-b border-gray-700">
+                    <div class="p-4 bg-secondary-dark flex justify-between items-center border-b border-gray-700 flex-shrink-0">
                         <h3 class="text-lg font-semibold text-white">Menu & Contacts</h3>
                         <button id="close-menu-button" class="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -110,7 +109,7 @@
                         </button>
                     </div>
 
-                    <div class="p-4 border-b border-gray-700">
+                    <div class="p-4 border-b border-gray-700 flex-shrink-0">
                         <p class="text-sm text-gray-400 mb-2">Logged in as:</p>
                         <p id="menu-user-email" class="text-white font-medium break-all"></p>
                         
@@ -152,7 +151,7 @@
 
             <main id="chat-messages" class="chat-container flex-grow p-4 space-y-4"></main>
 
-            <footer class="bg-secondary-dark p-4 shadow-2xl z-10">
+            <footer class="bg-secondary-dark p-4 shadow-2xl z-10 flex-shrink-0">
                 <div id="loading-indicator" class="text-center text-accent-blue mb-2 hidden">
                     <div class="animate-spin inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full" role="status"></div>
                     Loading messages...
@@ -208,10 +207,10 @@
         let auth;
         let currentUserId = null;
         let currentUserEmail = null;
-        let currentUserDisplayName = 'Anonymous'; // NEW: Stores the 8-char name
-        let currentChatType = 'public'; // 'public' or 'private'
-        let currentRecipient = null; // { userId, email, displayName } for private chat
-        let unsubscribeMessages = null; // Function to stop the message listener
+        let currentUserDisplayName = 'Anonymous'; 
+        let currentChatType = 'public'; 
+        let currentRecipient = null; 
+        let unsubscribeMessages = null; 
         
         // Global state for notifications
         let notificationPermission = 'default';
@@ -237,7 +236,7 @@
         const contactList = document.getElementById('contact-list');
         const switchToPublicChatButton = document.getElementById('switch-to-public-chat-button');
         const clearCurrentChatButton = document.getElementById('clear-current-chat-button');
-        // NEW Username Elements
+        // Username Elements
         const usernameInput = document.getElementById('username-input');
         const saveUsernameButton = document.getElementById('save-username-button');
         // -------------------------
@@ -257,6 +256,7 @@
         }
 
         function scrollToBottom() {
+            // Scroll to bottom of the chatMessagesContainer element
             chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
         }
 
@@ -265,14 +265,11 @@
             chatScreen.classList.toggle('hidden', !showChat);
         }
 
-        // NEW: Extracts the name for display (Priority: 1. Saved Name, 2. Short Email)
         function getChatDisplay(userDoc) {
             if (!userDoc || (!userDoc.displayName && !userDoc.email)) return 'Anonymous';
-            // Prioritize the user-set displayName if it exists
             if (userDoc.displayName) {
                 return userDoc.displayName; 
             }
-            // Otherwise, fall back to the part of the email before the @
             return userDoc.email ? userDoc.email.split('@')[0] : 'Anonymous';
         }
 
@@ -313,18 +310,15 @@
             try {
                 const userDocRef = doc(db, 'users', user.uid);
                 
-                // 1. Write/Merge basic user data
                 await setDoc(userDocRef, {
                     userId: user.uid,
                     email: user.email,
                     lastSeen: Date.now()
                 }, { merge: true });
 
-                // 2. Read back to get saved display name
                 const userDoc = await getDoc(userDocRef);
                 const userData = userDoc.data();
                 
-                // 3. Update global state and UI elements
                 currentUserDisplayName = getChatDisplay(userData);
                 usernameInput.value = userData?.displayName || '';
                 
@@ -337,7 +331,9 @@
         }
         
         async function handleSetDisplayName() {
-            const newName = usernameInput.value.trim().substring(0, 8); // Ensure max 8 chars
+            // New logic: Allow special characters, but trim and limit to 8
+            const rawName = usernameInput.value.trim();
+            const newName = rawName.substring(0, 8); 
             
             if (!newName || newName.length < 3) {
                 alert("Username must be 3-8 characters long.");
@@ -380,7 +376,6 @@
         
         function listenForContacts() {
             const usersRef = collection(db, 'users');
-            // Listen for changes and update the contact list
             onSnapshot(usersRef, (snapshot) => {
                 contactList.innerHTML = '';
                 snapshot.forEach(doc => {
@@ -405,7 +400,6 @@
             const isSelected = currentRecipient && currentRecipient.userId === contact.userId;
             
             contactDiv.className = `p-3 rounded-lg cursor-pointer transition duration-150 break-all ${isSelected ? 'bg-accent-green bg-opacity-30 border border-accent-green' : 'bg-secondary-dark hover:bg-gray-700'}`;
-            // Use display name for the contact list
             contactDiv.innerHTML = `<p class="text-sm font-semibold">${getChatDisplay(contact)}</p>`; 
             contactDiv.setAttribute('data-user-id', contact.userId);
             contactDiv.setAttribute('data-email', contact.email);
@@ -448,7 +442,7 @@
                     currentUserId = user.uid;
                     currentUserEmail = user.email;
 
-                    await upsertUser(user); // Fetch/set display name
+                    await upsertUser(user); 
                     listenForContacts(); 
                     requestNotificationPermission();
 
@@ -497,7 +491,7 @@
             currentChatType = 'private';
             currentRecipient = recipient;
             
-            // CRITICAL UPDATE: Only show the recipient's display name
+            // Only show the recipient's display name
             chatTitle.textContent = `${getChatDisplay(recipient)}`; 
             clearCurrentChatButton.textContent = `Clear Chat with ${getChatDisplay(recipient)}`;
             listenForMessages(); 
@@ -569,7 +563,7 @@
             
             const messagesQuery = query(colRef, orderBy('timestamp', 'asc'), limit(100));
 
-            if (unsubscribeMessages) unsubscribeMessages(); // Ensure previous listener is stopped
+            if (unsubscribeMessages) unsubscribeMessages(); 
 
             unsubscribeMessages = onSnapshot(messagesQuery, (snapshot) => {
                 
@@ -579,7 +573,6 @@
                         if (change.type === 'added') {
                             const message = change.doc.data();
                             
-                            // Only notify for new messages not sent by me
                             if (message.userId !== currentUserId) { 
                                 if (notificationPermission === 'granted') {
                                     const title = currentChatType === 'public' ? 'New Public Message' : `New Private Message from ${message.senderDisplayName || getChatDisplay(message)}`;
@@ -629,7 +622,7 @@
                     await addDoc(collection(db, messagesCollectionPath), {
                         userId: currentUserId,
                         email: currentUserEmail,
-                        senderDisplayName: currentUserDisplayName, // NEW: Save the 8-char name with the message
+                        senderDisplayName: currentUserDisplayName, 
                         text: text,
                         timestamp: Date.now()
                     });
@@ -663,7 +656,6 @@
             try {
                 const colRef = collection(db, messagesCollectionPath);
                 
-                // Fetch up to 500 documents for deletion to manage batch size
                 const snapshot = await getDocs(query(colRef, limit(500))); 
                 
                 if (snapshot.empty) {
@@ -732,7 +724,7 @@
         closeMenuButton.addEventListener('click', closeMenu);
         sideMenu.addEventListener('click', handleMenuClick);
         
-        // NEW Username Listener
+        // Username Listener
         saveUsernameButton.addEventListener('click', handleSetDisplayName);
         usernameInput.addEventListener('keydown', (e) => {
              if (e.key === 'Enter') {
