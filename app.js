@@ -1,5 +1,6 @@
 // ===== Firebase config (your project) =====
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+import { initializeApp } from "firebase/app";
 const firebaseConfig = {
   apiKey: "AIzaSyD8H7djMIWuXB8f0t37S0VwL8xm39jaWdI",
   authDomain: "dheechat-1258a.firebaseapp.com",
@@ -10,7 +11,6 @@ const firebaseConfig = {
   appId: "1:893019112248:web:9d813c2339311f74f5f7cd",
   measurementId: "G-GHHWSG2HFV"
 };
-
 // Initialize Firebase
 const app = firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
@@ -122,4 +122,5 @@ db.ref("messages").on("child_removed", function(oldSnapshot) {
     // If you were deleting individual messages, you'd find and remove the specific div here.
     // For a full clear, the messagesDiv.innerHTML = '' already handles this.
 });
+
 
