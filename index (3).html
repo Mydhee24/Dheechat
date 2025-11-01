@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Multi-User Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'primary-dark': '#111827', /* Darker background */
+                        'secondary-dark': '#1f2937', /* Card/Input background */
+                        'accent-blue': '#3b82f6',
+                        'accent-green': '#10b981',
+                        'google-red': '#db4437'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        
+        .chat-container {
+            /* Calculate height based on full screen minus header and footer/input area */
+            height: calc(100vh - 8rem); 
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+
+        .chat-container::-webkit-scrollbar {
+            width: 8px;
+            background-color: transparent;
+        }
+
+        .chat-container::-webkit-scrollbar-thumb {
+            background-color: #4b5563;
+            border-radius: 4px;
+        }
+
+        /* Responsive adjustments for mobile/PC compatibility */
+        #chat-app {
+            max-width: 100%;
+            height: 100vh;
+        }
+        @media (min-width: 768px) {
+            #chat-app {
+                max-width: 700px;
+                margin: 0 auto;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans h-screen flex justify-center items-center">
+
+    <div id="chat-app" class="flex flex-col bg-primary-dark shadow-2xl rounded-lg overflow-hidden w-full h-full md:h-[90vh]">
+
+        <div id="login-screen" class="flex flex-col items-center justify-center p-8 text-center flex-grow">
+            <h2 class="text-4xl font-extrabold mb-4 text-accent-blue">Secure Chat Login</h2>
+            <p class="text-gray-400 mb-8 max-w-sm">Sign in with your Google account to join the conversation and identify yourself by your Gmail address.</p>
+            <button id="google-sign-in-button" 
+                    class="flex items-center justify-center bg-google-red hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl transition duration-300 shadow-xl transform hover:scale-[1.03] active:scale-95">
+                <svg class="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M22.56 12.25c0-.78-.07-1.5-.2-2.2H12v4.16h5.88c-.26 1.42-1.04 2.68-2.3 3.53l-2.45 2.02v3.09h3.76c2.2-2.03 3.57-5.01 3.57-8.2zm-12.72 10.15c2.94 0 5.46-1.04 7.28-2.8l-3.76-3.09c-1.04.7-2.36 1.13-3.86 1.13-2.98 0-5.5-1.9-6.36-4.49H3.7v3.08c1.78 3.51 5.38 5.97 9.08 5.97zM4.3 9.4c-.16-.5-.25-1.03-.25-1.58s.09-1.08.25-1.58V3.24H.54c-.67 1.34-1.04 2.87-1.04 4.58s.37 3.24 1.04 4.58l3.76-3.08zM12 3.86c1.82 0 3.44.62 4.74 1.84l3.29-3.29C17.46.74 14.8.0 12.0.0c-3.7 0-7.3 2.46-9.08 5.97l3.76 3.08C6.5 5.76 9.02 3.86 12 3.86z"/>
+                </svg>
+                Sign in with Google
+            </button>
+        </div>
+
+        <div id="chat-screen" class="hidden flex-col flex-grow">
+            
+            <header class="bg-secondary-dark p-4 shadow-xl flex justify-between items-center z-20 relative">
+                <div class="flex items-center">
+                    <button id="menu-button"
+                            class="p-2 rounded-full hover:bg-gray-700 transition duration-200 focus:outline-none mr-3">
+                        <svg class="w-6 h-6 text-gray-100" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                    <h1 id="chat-title" class="text-xl font-bold text-accent-green truncate">
+                        Public Chat
+                    </h1>
+                </div>
+                
+                <div class="flex items-center">
+                    <span id="user-email-display" class="font-normal text-sm text-gray-400 mr-4 hidden md:block truncate max-w-xs"></span>
+                    <button id="sign-out-button"
+                            class="text-xs text-gray-400 hover:text-red-500 transition duration-200 p-2 rounded-lg">
+                        Sign Out
+                    </button>
+                </div>
+            </header>
+
+            <div id="side-menu" 
+                class="fixed inset-0 z-30 bg-black bg-opacity-70 transition-opacity duration-300 opacity-0 pointer-events-none md:w-full">
+                
+                <div class="absolute left-0 top-0 h-full w-64 bg-primary-dark shadow-2xl transform -translate-x-full transition-transform duration-300 flex flex-col">
+                    <div class="p-4 bg-secondary-dark flex justify-between items-center border-b border-gray-700">
+                        <h3 class="text-lg font-semibold text-white">Menu & Contacts</h3>
+                        <button id="close-menu-button" class="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="p-4 border-b border-gray-700">
+                        <p class="text-sm text-gray-400 mb-2">Logged in as:</p>
+                        <p id="menu-user-email" class="text-white font-medium break-all"></p>
+                        
+                        <button id="switch-to-public-chat-button"
+                                class="mt-4 w-full text-center py-2 px-3 text-sm rounded-lg bg-accent-blue hover:bg-blue-600 transition duration-200 text-white font-semibold">
+                            Switch to Public Chat
+                        </button>
+
+                        <button id="clear-current-chat-button"
+                                class="mt-2 w-full text-center py-2 px-3 text-sm rounded-lg bg-google-red hover:bg-red-700 transition duration-200 text-white font-semibold">
+                            Clear Current Chat History
+                        </button>
+
+                    </div>
+
+                    <div class="p-4 flex-grow overflow-y-auto">
+                        <h4 class="text-md font-semibold text-accent-green mb-3">Available Contacts</h4>
+                        <div id="contact-list" class="space-y-2">
+                            <div class="text-sm text-gray-500 p-2 border border-gray-800 rounded-lg" id="contact-loading">
+                                Loading contacts...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <main id="chat-messages" class="chat-container flex-grow p-4 space-y-4"></main>
+
+            <footer class="bg-secondary-dark p-4 shadow-2xl z-10">
+                <div id="loading-indicator" class="text-center text-accent-blue mb-2 hidden">
+                    <div class="animate-spin inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full" role="status"></div>
+                    Loading messages...
+                </div>
+                <div class="flex space-x-3 items-center">
+                    
+                    <input type="text" id="message-input" placeholder="Type your message..."
+                           class="flex-grow p-3 rounded-xl bg-primary-dark border border-gray-700 focus:outline-none focus:ring-2 focus:ring-accent-blue text-gray-100 placeholder-gray-500 transition duration-300 shadow-inner"
+                           autocomplete="off" maxlength="500" disabled>
+                    <button id="send-button"
+                            class="bg-accent-blue text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:bg-blue-600 transition duration-300 transform hover:scale-[1.02] active:scale-95 disabled:bg-gray-600 disabled:shadow-none"
+                            disabled>
+                        Send
+                    </button>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
+        // UPDATED: Added doc, limit, orderBy for querying and better P2P logic
+        import { getFirestore, collection, addDoc, onSnapshot, query, setLogLevel, getDocs, deleteDoc, setDoc, doc, limit, orderBy } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+
+        // =========================================================================
+        // ✅ Your Firebase Configuration
+        // =========================================================================
+        const EXTERNAL_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyAwfV2UkHnFJOET4yQpxXkCItP2FmTG2g8",
+            authDomain: "dhee-chat-e14bc.firebaseapp.com",
+            projectId: "dhee-chat-e14bc",
+            storageBucket: "dhee-chat-e14bc.firebasestorage.app",
+            messagingSenderId: "1091790414441",
+            appId: "1:1091790414441:web:42bfa96e6b3eea8bdff8f8",
+        };
+        // =========================================================================
+        
+        // --- Configuration Logic ---
+        let firebaseConfig;
+        let appId;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        if (typeof __firebase_config !== 'undefined') {
+            firebaseConfig = JSON.parse(__firebase_config);
+            appId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId;
+        } else {
+            firebaseConfig = EXTERNAL_FIREBASE_CONFIG;
+            appId = firebaseConfig.projectId || 'chat-default-id';
+        }
+        
+        // --- Global Firebase Instances and User State ---
+        let db;
+        let auth;
+        let currentUserId = null;
+        let currentUserEmail = null;
+        let currentChatType = 'public'; // 'public' or 'private'
+        let currentRecipient = null; // { userId, email } for private chat
+        let unsubscribeMessages = null; // Function to stop the message listener
+
+        // --- UI Elements ---
+        const loginScreen = document.getElementById('login-screen');
+        const chatScreen = document.getElementById('chat-screen');
+        const googleSignInButton = document.getElementById('google-sign-in-button');
+        const signOutButton = document.getElementById('sign-out-button');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const chatMessagesContainer = document.getElementById('chat-messages');
+        const userEmailDisplay = document.getElementById('user-email-display');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const chatTitle = document.getElementById('chat-title');
+
+        // --- Menu Elements ---
+        const menuButton = document.getElementById('menu-button');
+        const sideMenu = document.getElementById('side-menu');
+        const closeMenuButton = document.getElementById('close-menu-button');
+        const menuUserEmail = document.getElementById('menu-user-email');
+        const contactList = document.getElementById('contact-list');
+        const switchToPublicChatButton = document.getElementById('switch-to-public-chat-button');
+        const clearCurrentChatButton = document.getElementById('clear-current-chat-button');
+        // -------------------------
+
+        // --- Utility Functions ---
+
+        async function fetchWithRetry(apiCall, maxRetries = 5) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    return await apiCall();
+                } catch (error) {
+                    if (i === maxRetries - 1) throw error;
+                    const delay = Math.pow(2, i) * 1000 + Math.random() * 500;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+
+        function scrollToBottom() {
+            chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+        }
+
+        function switchView(showChat) {
+            loginScreen.classList.toggle('hidden', showChat);
+            chatScreen.classList.toggle('hidden', !showChat);
+        }
+
+        // --- Menu Control Functions ---
+        function openMenu() {
+            sideMenu.classList.remove('opacity-0', 'pointer-events-none');
+            sideMenu.querySelector('div').classList.remove('-translate-x-full'); 
+        }
+
+        function closeMenu() {
+            sideMenu.classList.add('opacity-0', 'pointer-events-none');
+            sideMenu.querySelector('div').classList.add('-translate-x-full');
+        }
+
+        function handleMenuClick(event) {
+            if (event.target === sideMenu) {
+                closeMenu();
+            }
+        }
+        // -------------------------------------
+
+        // --- Authentication and User Setup Logic ---
+        
+        // NEW: Creates or updates a user document in Firestore upon login
+        async function upsertUser(user) {
+            if (!user.uid || !user.email) return;
+            try {
+                // Path: /users/{userId}
+                const userDocRef = doc(db, 'users', user.uid);
+                await setDoc(userDocRef, {
+                    userId: user.uid,
+                    email: user.email,
+                    lastSeen: Date.now()
+                }, { merge: true }); // Use merge:true to update without overwriting other fields
+            } catch (error) {
+                console.error("Error upserting user data:", error);
+            }
+        }
+        
+        // NEW: Fetches and displays all users as contacts
+        function listenForContacts() {
+            // Path: /users
+            const usersRef = collection(db, 'users');
+            onSnapshot(usersRef, (snapshot) => {
+                contactList.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const contact = doc.data();
+                    // Don't show the current user as a contact
+                    if (contact.userId !== currentUserId) {
+                        renderContact(contact);
+                    }
+                });
+                
+                if (contactList.children.length === 0) {
+                    contactList.innerHTML = `<div class="text-sm text-gray-500 p-2 border border-gray-800 rounded-lg">
+                        No other users found. Have another user log in!
+                    </div>`;
+                }
+            }, (error) => {
+                console.error("Error listening for contacts:", error);
+            });
+        }
+        
+        function renderContact(contact) {
+            const contactDiv = document.createElement('div');
+            contactDiv.className = `p-3 rounded-lg cursor-pointer bg-secondary-dark hover:bg-gray-700 transition duration-150 break-all`;
+            contactDiv.innerHTML = `<p class="text-sm font-semibold">${contact.email}</p>`;
+            contactDiv.setAttribute('data-user-id', contact.userId);
+            contactDiv.setAttribute('data-email', contact.email);
+            
+            contactDiv.addEventListener('click', () => {
+                const userId = contactDiv.getAttribute('data-user-id');
+                const email = contactDiv.getAttribute('data-email');
+                
+                // Switch to the private chat with this user
+                switchToPrivateChat({ userId, email });
+                closeMenu();
+            });
+            
+            contactList.appendChild(contactDiv);
+        }
+        
+        // --- Authentication Listeners remain the same ---
+        async function handleGoogleSignIn() {
+            const provider = new GoogleAuthProvider();
+            try {
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                console.error("Google Sign-In failed:", error);
+                userEmailDisplay.textContent = 'Login Error! Check console & domain settings.';
+            }
+        }
+
+        async function handleSignOut() {
+            try {
+                await signOut(auth);
+            } catch (error) {
+                console.error("Sign Out failed:", error);
+            }
+        }
+
+        function setupAuthListener() {
+            onAuthStateChanged(auth, (user) => {
+                loadingIndicator.classList.add('hidden');
+                if (user) {
+                    currentUserId = user.uid;
+                    currentUserEmail = user.email;
+
+                    upsertUser(user); // NEW: Save/update user data
+                    listenForContacts(); // NEW: Start listing contacts
+
+                    userEmailDisplay.textContent = currentUserEmail || 'Signed In';
+                    menuUserEmail.textContent = currentUserEmail || 'Signed In'; 
+                    
+                    switchView(true);
+
+                    sendButton.disabled = false;
+                    messageInput.disabled = false;
+                    messageInput.focus();
+                    
+                    // Start in public chat by default
+                    switchToPublicChat(); 
+
+                } else {
+                    currentUserId = null;
+                    currentUserEmail = null;
+                    // Stop message listener when signed out
+                    if (unsubscribeMessages) {
+                        unsubscribeMessages();
+                        unsubscribeMessages = null;
+                    } 
+                    switchView(false);
+                    chatMessagesContainer.innerHTML = '';
+                    closeMenu();
+                }
+            });
+        }
+
+
+        // --- Chat Switching Logic (NEW) ---
+        
+        // Helper to generate a unique chat ID for two users
+        function getPrivateChatId(userId1, userId2) {
+            // Sort UIDs alphabetically to ensure the ID is always the same regardless of who starts the chat
+            return [userId1, userId2].sort().join('_');
+        }
+
+        function switchToPublicChat() {
+            if (unsubscribeMessages) unsubscribeMessages();
+            currentChatType = 'public';
+            currentRecipient = null;
+            chatTitle.textContent = 'Public Chat';
+            clearCurrentChatButton.textContent = 'Clear Public Chat History';
+            listenForMessages(); // Start public listener
+        }
+        
+        function switchToPrivateChat(recipient) {
+            if (unsubscribeMessages) unsubscribeMessages();
+            currentChatType = 'private';
+            currentRecipient = recipient;
+            chatTitle.textContent = `Private Chat with ${recipient.email.split('@')[0]}`;
+            clearCurrentChatButton.textContent = `Clear Chat with ${recipient.email.split('@')[0]}`;
+            listenForMessages(); // Start private listener
+        }
+
+        // --- Message Rendering and Firestore ---
+
+        function renderMessage(message, isMe) {
+            const messageDiv = document.createElement('div');
+            
+            let classes = ['flex', 'max-w-[80%]', 'md:max-w-md'];
+            
+            if (isMe) {
+                classes.push('self-end', 'justify-end', 'ml-auto');
+            } else {
+                classes.push('self-start', 'justify-start', 'mr-auto');
+            }
+
+            messageDiv.className = classes.join(' ');
+
+            const bubble = document.createElement('div');
+            bubble.className = `p-3 rounded-2xl shadow-lg break-words transition duration-300 ${isMe 
+                ? 'bg-accent-blue text-white rounded-br-none' 
+                : 'bg-secondary-dark text-gray-100 rounded-tl-none'
+            }`;
+            
+            // Username/Email
+            const emailSpan = document.createElement('span');
+            emailSpan.textContent = message.email || 'Anonymous';
+            emailSpan.className = `block text-xs font-bold mb-1 ${isMe ? 'text-blue-200' : 'text-accent-green'}`;
+            bubble.appendChild(emailSpan);
+            
+            // Message Text
+            const textP = document.createElement('p');
+            textP.textContent = message.text;
+            textP.className = 'text-base';
+            bubble.appendChild(textP);
+
+            // Timestamp
+            if (message.timestamp) {
+                const date = new Date(message.timestamp);
+                const time = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                const timeSpan = document.createElement('span');
+                timeSpan.textContent = time;
+                timeSpan.className = `block mt-1 text-xs ${isMe ? 'text-blue-200 text-right' : 'text-gray-400 text-left'}`;
+                bubble.appendChild(timeSpan);
+            }
+
+            messageDiv.appendChild(bubble);
+            chatMessagesContainer.appendChild(messageDiv);
+        }
+        
+        function listenForMessages() {
+            let messagesCollectionPath;
+            
+            if (currentChatType === 'public') {
+                // Public Path: /artifacts/{appId}/public/data/messages
+                messagesCollectionPath = `artifacts/${appId}/public/data/messages`;
+                
+            } else if (currentChatType === 'private' && currentRecipient) {
+                // Private Path: /private_chats/{chatId}/messages
+                const chatId = getPrivateChatId(currentUserId, currentRecipient.userId);
+                messagesCollectionPath = `private_chats/${chatId}/messages`;
+            } else {
+                // Fallback / Log error
+                chatMessagesContainer.innerHTML = '<div class="text-red-500 text-center p-4">Error: Invalid chat state.</div>';
+                return;
+            }
+            
+            const colRef = collection(db, messagesCollectionPath);
+            
+            // Query: Limit to 100 messages, ordered by timestamp
+            const messagesQuery = query(colRef, orderBy('timestamp', 'asc'), limit(100));
+
+            // Set up real-time listener and save the unsubscribe function
+            unsubscribeMessages = onSnapshot(messagesQuery, (snapshot) => {
+                
+                // Check if we were at the bottom before rendering
+                const shouldScroll = chatMessagesContainer.scrollHeight - chatMessagesContainer.scrollTop <= chatMessagesContainer.clientHeight + 50;
+
+                // Clear container and re-render
+                chatMessagesContainer.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const message = doc.data();
+                    renderMessage(message, message.userId === currentUserId);
+                });
+                
+                // Only scroll if the user was near the bottom
+                if (shouldScroll) {
+                    scrollToBottom();
+                }
+            }, (error) => {
+                console.error("Error listening to messages:", error);
+                chatMessagesContainer.innerHTML = `<div class="text-red-500 text-center p-4">Error loading chat. Check console and security rules.</div>`;
+            });
+        }
+
+        async function sendMessage() {
+            const text = messageInput.value.trim();
+            if (!text || !currentUserId || !currentUserEmail || !db) return;
+
+            let messagesCollectionPath;
+            if (currentChatType === 'public') {
+                messagesCollectionPath = `artifacts/${appId}/public/data/messages`;
+            } else if (currentChatType === 'private' && currentRecipient) {
+                const chatId = getPrivateChatId(currentUserId, currentRecipient.userId);
+                messagesCollectionPath = `private_chats/${chatId}/messages`;
+            } else {
+                return; // Cannot send message if chat state is invalid
+            }
+
+            try {
+                await fetchWithRetry(async () => {
+                    await addDoc(collection(db, messagesCollectionPath), {
+                        userId: currentUserId,
+                        email: currentUserEmail,
+                        text: text,
+                        timestamp: Date.now()
+                    });
+                });
+                
+                messageInput.value = '';
+                messageInput.focus();
+            } catch (error) {
+                console.error("Error sending message:", error);
+            }
+        }
+
+        // Function to clear all messages in the currently active chat
+        async function handleClearCurrentChat() {
+            let chatName = currentChatType === 'public' ? 'Public Chat' : `Chat with ${currentRecipient.email}`;
+            
+            if (!confirm(`Are you sure you want to permanently delete ALL messages from ${chatName}? This cannot be undone.`)) {
+                return;
+            }
+
+            let messagesCollectionPath;
+            if (currentChatType === 'public') {
+                messagesCollectionPath = `artifacts/${appId}/public/data/messages`;
+            } else if (currentChatType === 'private' && currentRecipient) {
+                const chatId = getPrivateChatId(currentUserId, currentRecipient.userId);
+                messagesCollectionPath = `private_chats/${chatId}/messages`;
+            } else {
+                alert("Cannot clear chat: Invalid chat state.");
+                return;
+            }
+
+            try {
+                const colRef = collection(db, messagesCollectionPath);
+                const snapshot = await getDocs(query(colRef));
+                
+                if (snapshot.empty) {
+                    alert(`${chatName} is already empty.`);
+                    closeMenu();
+                    return;
+                }
+                
+                const deletePromises = [];
+                snapshot.forEach((doc) => {
+                    deletePromises.push(deleteDoc(doc.ref));
+                });
+                
+                await Promise.all(deletePromises);
+                console.log(`Successfully deleted ${deletePromises.length} messages from ${chatName}.`);
+                closeMenu();
+                alert(`${chatName} History Cleared!`);
+
+            } catch (error) {
+                console.error("Error clearing chat:", error);
+                alert("Failed to clear chat. Check console and ensure your security rules are correct.");
+            }
+        }
+
+
+        // --- Initialization and Event Setup ---
+
+        async function setupApp() {
+            try {
+                setLogLevel('Debug');
+                
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                loadingIndicator.classList.remove('hidden');
+
+                if (initialAuthToken) {
+                    await fetchWithRetry(async () => {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                        console.log("Canvas environment: Signed in with custom token.");
+                    });
+                }
+                
+                setupAuthListener();
+            } catch (error) {
+                console.error("Fatal Error during app setup:", error);
+                loadingIndicator.classList.add('hidden');
+                userEmailDisplay.textContent = 'CRITICAL ERROR: Check Console';
+            }
+        }
+
+        // --- Event Listeners ---
+        googleSignInButton.addEventListener('click', handleGoogleSignIn);
+        signOutButton.addEventListener('click', handleSignOut);
+        sendButton.addEventListener('click', sendMessage);
+        
+        // Menu Listeners
+        menuButton.addEventListener('click', openMenu);
+        closeMenuButton.addEventListener('click', closeMenu);
+        sideMenu.addEventListener('click', handleMenuClick);
+        
+        // NEW Chat Switching/Clearing Listeners
+        switchToPublicChatButton.addEventListener('click', () => {
+            switchToPublicChat();
+            closeMenu();
+        });
+        clearCurrentChatButton.addEventListener('click', handleClearCurrentChat);
+
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !sendButton.disabled) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Initialize App on load
+        window.onload = setupApp;
+
+    </script>
+</body>
+</html>
