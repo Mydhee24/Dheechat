@@ -3,68 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dheechat Firebase Auth</title>
+    <title>Dheechat - Powered by Firebase</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        div { margin-bottom: 10px; }
-        input { padding: 8px; margin-right: 5px; }
-        button { padding: 8px 15px; cursor: pointer; }
-        #message { margin-top: 20px; padding: 10px; border: 1px solid #ccc; background-color: #f9f9f9; }
-        #recaptcha-container { margin-top: 15px; }
-        .hidden { display: none; }
+        /* Basic styling for demonstration purposes */
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; }
+        .container { background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 600px; margin: auto; }
+        input, button { padding: 10px; margin-bottom: 10px; border-radius: 4px; border: 1px solid #ddd; width: calc(100% - 22px); }
+        button { background-color: #4CAF50; color: white; cursor: pointer; border: none; }
+        button:hover { background-color: #45a049; }
+        #auth-section, #chat-section { display: none; } /* Hidden by default, controlled by JS */
+        #messages { border: 1px solid #eee; height: 300px; overflow-y: scroll; padding: 10px; margin-bottom: 10px; background-color: #fafafa; }
+        .message { margin-bottom: 5px; }
+        .message strong { color: #333; }
+        .message span { color: #666; font-size: 0.9em; }
+        #user-info { margin-bottom: 15px; font-weight: bold; }
+        #recaptcha-container { margin-bottom: 10px; }
     </style>
 </head>
 <body>
-    <h1>Dheechat User Authentication</h1>
+    <div class="container">
+        <h1>Dheechat</h1>
 
-    <div id="authSection">
-        <!-- Phone Sign-in -->
-        <h2>Phone Number Sign-in / Registration</h2>
-        <div>
-            <input type="text" id="phoneNumberInput" placeholder="e.g., +11234567890">
-            <button id="sendOtpButton">Send OTP</button>
-        </div>
-        <div id="otpVerification" class="hidden">
-            <input type="text" id="otpInput" placeholder="Enter OTP">
-            <button id="verifyOtpButton">Verify OTP</button>
-        </div>
-        <div id="recaptcha-container"></div>
+        <!-- Authentication Section -->
+        <div id="auth-section">
+            <h2>Sign Up / Log In</h2>
 
-        <!-- First-time User Registration (after phone sign-in) -->
-        <div id="firstTimeUser" class="hidden">
-            <h2>Welcome! Register your profile.</h2>
-            <div>
-                <input type="text" id="usernameInput" placeholder="Choose a username">
-                <button id="registerUsernameButton">Register Username</button>
+            <!-- Email & Password -->
+            <h3>Email & Password</h3>
+            <input type="email" id="emailInput" placeholder="Email">
+            <input type="password" id="passwordInput" placeholder="Password">
+            <button id="emailSignUpBtn">Sign Up (Email)</button>
+            <button id="emailSignInBtn">Sign In (Email)</button>
+
+            <!-- Phone Authentication -->
+            <h3>Phone Number</h3>
+            <input type="tel" id="phoneInput" placeholder="e.g., +15551234567">
+            <button id="sendCodeBtn">Send Verification Code</button>
+            <div id="recaptcha-container"></div> <!-- Firebase reCAPTCHA renders here -->
+            <input type="text" id="verificationCodeInput" placeholder="Verification Code">
+            <button id="verifyCodeBtn">Verify Code</button>
+
+            <p id="authStatus" style="color: red;"></p>
+        </div>
+
+        <!-- Chat Section -->
+        <div id="chat-section">
+            <p id="user-info"></p>
+            <button id="signOutBtn">Sign Out</button>
+
+            <h2>Chat Messages</h2>
+            <div id="messages">
+                <!-- Chat messages will be loaded here by JavaScript -->
             </div>
-            <h3>Optional: Link Email & Password</h3>
-            <div>
-                <input type="email" id="emailLinkInput" placeholder="Enter your email">
-                <input type="password" id="passwordLinkInput" placeholder="Choose a password">
-                <button id="linkEmailPasswordButton">Link Email/Password</button>
-            </div>
-        </div>
-
-        <!-- Email/Password Login (for linked accounts) -->
-        <h2>Email/Password Login</h2>
-        <div>
-            <input type="email" id="emailLoginInput" placeholder="Email">
-            <input type="password" id="passwordLoginInput" placeholder="Password">
-            <button id="emailLoginButton">Login with Email</button>
+            <input type="text" id="messageInput" placeholder="Type your message...">
+            <button id="sendMessageBtn">Send</button>
         </div>
     </div>
 
-    <div id="userInfo" class="hidden">
-        <h2>Logged In!</h2>
-        <p><strong>User ID:</strong> <span id="userId"></span></p>
-        <p><strong>Phone:</strong> <span id="userPhone"></span></p>
-        <p><strong>Email:</strong> <span id="userEmail"></span></p>
-        <p><strong>Username:</strong> <span id="userDbUsername"></span></p>
-        <button id="signOutButton">Sign Out</button>
-    </div>
+    <!-- Firebase SDKs - make sure these are the latest versions -->
+    <!-- You will replace "YOUR_FIREBASE_API_KEY", "YOUR_AUTH_DOMAIN", etc. with your project's config -->
+    <script type="module">
+        // Your Firebase project configuration for dheechat-1258a
+        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyD8H7djMIWuXB8f0t37S0VwL8xm39jaWdI",
+  authDomain: "dheechat-1258a.firebaseapp.com",
+  databaseURL: "https://dheechat-1258a-default-rtdb.firebaseio.com",
+  projectId: "dheechat-1258a",
+  storageBucket: "dheechat-1258a.firebasestorage.app",
+  messagingSenderId: "893019112248",
+  appId: "1:893019112248:web:9d813c2339311f74f5f7cd",
+  measurementId: "G-GHHWSG2HFV"
+};
 
-    <div id="message"></div>
+        // Import the functions you need from the Firebase SDKs
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, RecaptchaVerifier, signInWithPhoneNumber } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-    <script type="module" src="app.js"></script> <!-- Your JavaScript/TypeScript code -->
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Reference to the main app.js logic (if you were splitting into multiple files)
+        // For this example, we'll put all logic directly in this script tag for simplicity.
+        // If you prefer to use a separate app.js, remove this script tag and link app.js like so:
+        // <script type="module" src="app.js"></script>
+        // And move all the JS below into app.js
+    </script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>
