@@ -93,9 +93,12 @@
     <button id="sendBtn">Send</button>
   </div>
 
-  <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js"></script>
+  <!-- Firebase SDKs - Using version 10.0.0 is common for this type of modular setup -->
+  <!-- Ensure these versions match what you expect, or use the latest from Firebase. -->
+  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-database-compat.js"></script>
+  
+  <!-- Your application logic -->
   <script src="app.js"></script>
 </body>
 </html>
