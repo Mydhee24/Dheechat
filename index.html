@@ -26,18 +26,15 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
         
-        .chat-container {
-            /* FIX: Removed manual height calculation. Flexbox will manage height. */
-            overflow-y: auto;
-            scroll-behavior: smooth;
-        }
+        /* Removed .chat-container CSS block. Using Tailwind classes directly on <main> */
 
-        .chat-container::-webkit-scrollbar {
+        /* General scrollbar styling */
+        .overflow-y-auto::-webkit-scrollbar {
             width: 8px;
             background-color: transparent;
         }
 
-        .chat-container::-webkit-scrollbar-thumb {
+        .overflow-y-auto::-webkit-scrollbar-thumb {
             background-color: #4b5563;
             border-radius: 4px;
         }
@@ -74,7 +71,7 @@
 
         <div id="chat-screen" class="hidden flex-col flex-grow">
             
-            <header class="bg-secondary-dark p-4 shadow-xl flex justify-between items-center z-20 relative flex-shrink-0">
+            <header class="bg-secondary-dark p-4 shadow-xl flex justify-between items-center z-20 relative **flex-shrink-0**">
                 <div class="flex items-center">
                     <button id="menu-button"
                             class="p-2 rounded-full hover:bg-gray-700 transition duration-200 focus:outline-none mr-3">
@@ -149,9 +146,9 @@
                 </div>
             </div>
 
-            <main id="chat-messages" class="chat-container flex-grow p-4 space-y-4"></main>
+            <main id="chat-messages" class="flex-grow overflow-y-auto p-4 space-y-4 scroll-smooth"></main>
 
-            <footer class="bg-secondary-dark p-4 shadow-2xl z-10 flex-shrink-0">
+            <footer class="bg-secondary-dark p-4 shadow-2xl z-10 **flex-shrink-0**">
                 <div id="loading-indicator" class="text-center text-accent-blue mb-2 hidden">
                     <div class="animate-spin inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full" role="status"></div>
                     Loading messages...
@@ -212,7 +209,6 @@
         let currentRecipient = null; 
         let unsubscribeMessages = null; 
         
-        // Global state for notifications
         let notificationPermission = 'default';
 
 
@@ -256,7 +252,6 @@
         }
 
         function scrollToBottom() {
-            // Scroll to bottom of the chatMessagesContainer element
             chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
         }
 
@@ -331,7 +326,6 @@
         }
         
         async function handleSetDisplayName() {
-            // New logic: Allow special characters, but trim and limit to 8
             const rawName = usernameInput.value.trim();
             const newName = rawName.substring(0, 8); 
             
@@ -354,12 +348,9 @@
                 currentUserDisplayName = newName;
                 alert(`Username saved as: ${newName}`);
                 
-                // Refresh UI elements
                 menuUserEmail.textContent = `${currentUserDisplayName} (${currentUserEmail})` || 'Signed In'; 
                 
-                // Re-render contact list and current chat title to use the new name
                 if(currentChatType === 'private' && currentRecipient) {
-                    // Update currentRecipient object with the new display name
                     currentRecipient.displayName = newName;
                     switchToPrivateChat(currentRecipient);
                 } else {
@@ -491,7 +482,6 @@
             currentChatType = 'private';
             currentRecipient = recipient;
             
-            // Only show the recipient's display name
             chatTitle.textContent = `${getChatDisplay(recipient)}`; 
             clearCurrentChatButton.textContent = `Clear Chat with ${getChatDisplay(recipient)}`;
             listenForMessages(); 
@@ -519,19 +509,16 @@
                 : 'bg-secondary-dark text-gray-100 rounded-tl-none'
             }`;
             
-            // Username/Email - Use the saved senderDisplayName from the message
             const emailSpan = document.createElement('span');
             emailSpan.textContent = message.senderDisplayName || getChatDisplay(message) || 'Anonymous'; 
             emailSpan.className = `block text-xs font-bold mb-1 ${isMe ? 'text-blue-200' : 'text-accent-green'}`;
             bubble.appendChild(emailSpan);
             
-            // Message Text
             const textP = document.createElement('p');
             textP.textContent = message.text;
             textP.className = 'text-base';
             bubble.appendChild(textP);
 
-            // Timestamp
             if (message.timestamp) {
                 const date = new Date(message.timestamp);
                 const time = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
