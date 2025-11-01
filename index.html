@@ -50,7 +50,7 @@
         }
         @media (min-width: 768px) {
             #chat-app {
-                /* Reduced from 665px to 600px */
+                /* Reduced to 600px */
                 max-width: 600px; 
                 margin: 0 auto;
             }
@@ -200,7 +200,6 @@
         let unsubscribeMessages = null; // Function to stop the message listener
         
         // Global state for notifications
-        let lastMessageTimestamp = 0; 
         let notificationPermission = 'default';
 
 
@@ -249,7 +248,7 @@
             chatScreen.classList.toggle('hidden', !showChat);
         }
 
-        // NEW: Extracts the name part of the email for display
+        // Extracts the name part of the email for display
         function getUserDisplayName(email) {
             if (!email) return 'Anonymous';
             return email.split('@')[0];
@@ -273,7 +272,7 @@
         }
         // -------------------------------------
 
-        // --- Notifications (NEW) ---
+        // --- Notifications ---
         function requestNotificationPermission() {
             if ('Notification' in window) {
                 Notification.requestPermission().then(permission => {
@@ -497,7 +496,7 @@
 
             unsubscribeMessages = onSnapshot(messagesQuery, (snapshot) => {
                 
-                // 1. Handle Notifications (NEW)
+                // 1. Handle Notifications
                 if (!document.hasFocus()) {
                     snapshot.docChanges().forEach(change => {
                         if (change.type === 'added') {
@@ -587,7 +586,7 @@
             try {
                 const colRef = collection(db, messagesCollectionPath);
                 
-                // Fetch up to 500 documents for deletion
+                // Fetch up to 500 documents for deletion to manage batch size
                 const snapshot = await getDocs(query(colRef, limit(500))); 
                 
                 if (snapshot.empty) {
@@ -603,7 +602,7 @@
                 
                 await Promise.all(deletePromises);
                 
-                // Log success and check if more messages remain (for large chats)
+                // Provide feedback for successful deletion
                 console.log(`Successfully deleted ${deletePromises.length} messages from ${chatName}.`);
                 if (deletePromises.length >= 500) {
                      alert(`Cleared ${deletePromises.length} messages. A large chat may require running the clear operation again.`);
@@ -614,7 +613,8 @@
                 closeMenu();
 
             } catch (error) {
-                console.error("CRITICAL ERROR clearing chat:", error);
+                // Critical logging for the user to check their console
+                console.error("CRITICAL FIREBASE PERMISSION ERROR when clearing chat:", error);
                 alert(`Failed to clear chat for ${chatName}. Please check the Firebase Console logs for security rule or permission errors.`);
             }
         }
