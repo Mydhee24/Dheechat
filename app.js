@@ -1,6 +1,22 @@
-// ===== Firebase config (your project) =====
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// app.js (or app.ts)
+
+// 1. Import the necessary Firebase modules
 import { initializeApp } from "firebase/app";
+import {
+  getAuth,
+  PhoneAuthProvider,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  onAuthStateChanged,
+  linkWithCredential,
+  EmailAuthProvider,
+  signInWithEmailAndPassword,
+  signOut
+} from "firebase/auth";
+import { getDatabase, ref, set, onValue } from "firebase/database";
+
+// 2. Your Firebase project configuration
+//    Get this from Firebase Console > Project settings > General
 const firebaseConfig = {
   apiKey: "AIzaSyD8H7djMIWuXB8f0t37S0VwL8xm39jaWdI",
   authDomain: "dheechat-1258a.firebaseapp.com",
@@ -11,116 +27,268 @@ const firebaseConfig = {
   appId: "1:893019112248:web:9d813c2339311f74f5f7cd",
   measurementId: "G-GHHWSG2HFV"
 };
-// Initialize Firebase
-const app = firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
 
-// ===== DOM elements =====
-const messagesDiv = document.getElementById("messages");
-const nameInput = document.getElementById("nameInput");
-const messageInput = document.getElementById("messageInput");
-const sendBtn = document.getElementById("sendBtn");
-const clearChatBtn = document.getElementById("clearChatBtn"); // NEW: Get the Clear Chat button
+// 3. Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const database = getDatabase(app);
 
-// Store the user's name once it's entered for consistency across messages
-let userName = "";
+// 4. Get UI elements
+const phoneNumberInput = document.getElementById("phoneNumberInput");
+const sendOtpButton = document.getElementById("sendOtpButton");
+const otpVerificationDiv = document.getElementById("otpVerification");
+const otpInput = document.getElementById("otpInput");
+const verifyOtpButton = document.getElementById("verifyOtpButton");
+const recaptchaContainer = document.getElementById("recaptcha-container");
 
-// ===== Optional: Load user name from localStorage on startup =====
-document.addEventListener('DOMContentLoaded', () => {
-    const storedName = localStorage.getItem('dheeChatUserName');
-    if (storedName) {
-        nameInput.value = storedName;
-        userName = storedName;
+const firstTimeUserDiv = document.getElementById("firstTimeUser");
+const usernameInput = document.getElementById("usernameInput");
+const registerUsernameButton = document.getElementById("registerUsernameButton");
+const emailLinkInput = document.getElementById("emailLinkInput");
+const passwordLinkInput = document.getElementById("passwordLinkInput");
+const linkEmailPasswordButton = document.getElementById("linkEmailPasswordButton");
+
+const emailLoginInput = document.getElementById("emailLoginInput");
+const passwordLoginInput = document.getElementById("passwordLoginInput");
+const emailLoginButton = document.getElementById("emailLoginButton");
+
+const authSection = document.getElementById("authSection");
+const userInfoDiv = document.getElementById("userInfo");
+const userIdSpan = document.getElementById("userId");
+const userPhoneSpan = document.getElementById("userPhone");
+const userEmailSpan = document.getElementById("userEmail");
+const userDbUsernameSpan = document.getElementById("userDbUsername");
+const signOutButton = document.getElementById("signOutButton");
+const messageDiv = document.getElementById("message");
+
+let confirmationResult; // To hold the result of sending OTP
+let currentLoggedInUser; // To hold the current Firebase user object
+
+// 5. Setup reCAPTCHA Verifier
+// Use an invisible reCAPTCHA for a smoother UX.
+// Make sure to add <script src="https://www.gstatic.com/firebasejs/ui/6.0.0/firebase-ui-auth.js"></script>
+// and <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.0.0/firebase-ui-auth.css" />
+// in your HTML <head> if you want the visible widget.
+// For invisible, just ensure the Firebase SDK is loaded.
+window.recaptchaVerifier = new RecaptchaVerifier(auth, recaptchaContainer, {
+  'size': 'invisible', // Use 'visible' if you want a checkbox
+  'callback': (response) => {
+    // reCAPTCHA solved, allow signInWithPhoneNumber.
+    // This is optional if using 'invisible' as it auto-solves.
+  },
+  'expired-callback': () => {
+    // Response expired. Ask user to solve reCAPTCHA again.
+    displayMessage("reCAPTCHA expired. Please try again.");
+    window.recaptchaVerifier.render().then(function(widgetId) {
+      grecaptcha.reset(widgetId);
+    });
+  }
+});
+
+// 6. Event Listeners
+
+// Send OTP
+sendOtpButton.addEventListener("click", async () => {
+  const phoneNumber = phoneNumberInput.value.trim();
+  if (!phoneNumber) {
+    displayMessage("Please enter a phone number.");
+    return;
+  }
+
+  try {
+    displayMessage("Sending OTP...");
+    const appVerifier = window.recaptchaVerifier;
+    confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
+    otpVerificationDiv.classList.remove("hidden");
+    sendOtpButton.disabled = true;
+    displayMessage("OTP sent! Please check your phone.");
+  } catch (error) {
+    console.error("Error sending OTP:", error);
+    displayMessage(`Error sending OTP: ${error.message}`);
+    // Reset reCAPTCHA on error for visible widgets.
+    // For invisible, it might reset automatically or need explicit reset.
+    if (window.recaptchaVerifier && window.recaptchaVerifier.reset) {
+        window.recaptchaVerifier.reset();
     }
+    sendOtpButton.disabled = false; // Re-enable button
+  }
 });
 
-// ===== Event listener for the name input to store the name =====
-nameInput.addEventListener('change', (event) => {
-    userName = event.target.value.trim();
-    // Optional: Store name in localStorage to persist across sessions
-    localStorage.setItem('dheeChatUserName', userName);
-});
-
-// ===== Send message function =====
-sendBtn.onclick = function() {
-  if (!userName) {
-    alert("Please enter your name first!");
-    nameInput.focus(); // Bring focus back to the name input
+// Verify OTP
+verifyOtpButton.addEventListener("click", async () => {
+  const otpCode = otpInput.value.trim();
+  if (!otpCode) {
+    displayMessage("Please enter the OTP.");
     return;
   }
 
-  const message = messageInput.value.trim();
+  try {
+    displayMessage("Verifying OTP...");
+    // confirmationResult was obtained from signInWithPhoneNumber
+    await confirmationResult.confirm(otpCode);
+    // User is now signed in. onAuthStateChanged will handle UI updates.
+    displayMessage("Phone number verified successfully!");
+    otpVerificationDiv.classList.add("hidden");
+    // The onAuthStateChanged listener will handle the next steps (username reg, etc.)
+  } catch (error) {
+    console.error("Error verifying OTP:", error);
+    displayMessage(`Error verifying OTP: ${error.message}`);
+  }
+});
 
-  // Prevent truly empty messages
-  if (!message) {
-    console.warn("Attempted to send an empty message.");
+// Register Username (after initial phone sign-in)
+registerUsernameButton.addEventListener("click", async () => {
+  const username = usernameInput.value.trim();
+  if (!username) {
+    displayMessage("Please enter a username.");
+    return;
+  }
+  if (!currentLoggedInUser) {
+    displayMessage("No user logged in to register username for.");
     return;
   }
 
-  // Push the message to the "messages" node in Realtime Database
-  db.ref("messages").push({
-    name: userName, // Use the stored user name
-    message: message,
-    timestamp: firebase.database.ServerValue.TIMESTAMP // Use server timestamp for consistency
-  })
-  .then(() => {
-    console.log("Message sent successfully!");
-    messageInput.value = ""; // Clear input only on successful send
-    messageInput.focus(); // Keep focus on message input for quick replies
-  })
-  .catch((error) => {
-    console.error("Error sending message to Firebase:", error);
-    alert("Failed to send message. Please check the console for details.");
-  });
-};
-
-// ===== NEW: Clear Chat button functionality =====
-clearChatBtn.onclick = function() {
-  // Ask for user confirmation before performing a destructive action
-  if (confirm("Are you sure you want to clear the entire chat history for everyone? This cannot be undone.")) {
-    db.ref("messages").remove() // Removes the entire "messages" node
-      .then(() => {
-        console.log("Chat history cleared successfully!");
-        messagesDiv.innerHTML = ''; // Immediately clear the displayed messages from the UI
-      })
-      .catch((error) => {
-        console.error("Error clearing chat history:", error);
-        alert("Failed to clear chat. Please check the console for details.");
-      });
+  try {
+    displayMessage("Registering username...");
+    // Save username to Realtime Database under the user's UID
+    // Your RTDB rules: "users": { "$uid": { ".write": "auth !== null && auth.uid === $uid" } }
+    await set(ref(database, 'users/' + currentLoggedInUser.uid), {
+      username: username,
+      phone: currentLoggedInUser.phoneNumber,
+      registeredAt: new Date().toISOString()
+    });
+    displayMessage("Username registered successfully!");
+    firstTimeUserDiv.classList.add("hidden"); // Hide registration form
+    updateUserInfoUI(currentLoggedInUser); // Refresh UI
+  } catch (error) {
+    console.error("Error registering username:", error);
+    displayMessage(`Error registering username: ${error.message}`);
   }
-};
+});
 
+// Link Email and Password
+linkEmailPasswordButton.addEventListener("click", async () => {
+  const email = emailLinkInput.value.trim();
+  const password = passwordLinkInput.value.trim();
 
-// ===== Listen for new messages =====
-db.ref("messages").orderByChild("timestamp").on("child_added", function(snapshot) {
-  const msg = snapshot.val();
-  const div = document.createElement("div");
-  div.classList.add("message");
+  if (!email || !password) {
+    displayMessage("Please enter both email and password.");
+    return;
+  }
+  if (!currentLoggedInUser) {
+    displayMessage("No user logged in to link email/password to.");
+    return;
+  }
 
-  // Determine if it's 'my-message' based on the stored userName
-  if (userName && msg.name === userName) {
-    div.classList.add("my-message");
+  try {
+    displayMessage("Linking email and password...");
+    const credential = EmailAuthProvider.credential(email, password);
+    await linkWithCredential(currentLoggedInUser, credential);
+    displayMessage("Email and password linked successfully! You can now log in with either.");
+    updateUserInfoUI(currentLoggedInUser); // Refresh UI
+    // Optionally hide linking form
+  } catch (error) {
+    console.error("Error linking email/password:", error);
+    displayMessage(`Error linking email/password: ${error.message}`);
+  }
+});
+
+// Email/Password Login
+emailLoginButton.addEventListener("click", async () => {
+  const email = emailLoginInput.value.trim();
+  const password = passwordLoginInput.value.trim();
+
+  if (!email || !password) {
+    displayMessage("Please enter both email and password for login.");
+    return;
+  }
+
+  try {
+    displayMessage("Logging in with email...");
+    await signInWithEmailAndPassword(auth, email, password);
+    displayMessage("Logged in successfully with email!");
+    // onAuthStateChanged will handle UI updates
+  } catch (error) {
+    console.error("Error with email login:", error);
+    displayMessage(`Error with email login: ${error.message}`);
+  }
+});
+
+// Sign Out
+signOutButton.addEventListener("click", async () => {
+  try {
+    await signOut(auth);
+    displayMessage("Signed out successfully.");
+    // onAuthStateChanged will handle UI updates
+  } catch (error) {
+    console.error("Error signing out:", error);
+    displayMessage(`Error signing out: ${error.message}`);
+  }
+});
+
+// 7. Handle Authentication State Changes
+onAuthStateChanged(auth, async (user) => {
+  currentLoggedInUser = user; // Keep track of the current user
+
+  if (user) {
+    // User is signed in.
+    authSection.classList.add("hidden");
+    userInfoDiv.classList.remove("hidden");
+    userIdSpan.textContent = user.uid;
+    userPhoneSpan.textContent = user.phoneNumber || "N/A";
+    userEmailSpan.textContent = user.email || "N/A";
+
+    // Check if user has a username in RTDB
+    const userRef = ref(database, 'users/' + user.uid);
+    onValue(userRef, (snapshot) => {
+      const userData = snapshot.val();
+      if (userData && userData.username) {
+        userDbUsernameSpan.textContent = userData.username;
+        firstTimeUserDiv.classList.add("hidden"); // Hide registration if already has username
+      } else {
+        userDbUsernameSpan.textContent = "Not set";
+        // Show first-time user registration options if no username
+        firstTimeUserDiv.classList.remove("hidden");
+      }
+    }, {
+      onlyOnce: true // Fetch once to check for username
+    });
+
+    displayMessage(`Welcome, User ID: ${user.uid}`);
   } else {
-    div.classList.add("other-message");
+    // User is signed out.
+    authSection.classList.remove("hidden");
+    userInfoDiv.classList.add("hidden");
+    firstTimeUserDiv.classList.add("hidden"); // Hide registration form on sign out
+    sendOtpButton.disabled = false; // Enable send OTP button
+    // Reset forms
+    phoneNumberInput.value = "";
+    otpInput.value = "";
+    usernameInput.value = "";
+    emailLinkInput.value = "";
+    passwordLinkInput.value = "";
+    emailLoginInput.value = "";
+    passwordLoginInput.value = "";
+    displayMessage("Please sign in.");
   }
-
-  const date = new Date(msg.timestamp);
-  const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-  // Use spans for better styling control of timestamp
-  div.innerHTML = `<strong>${msg.name}</strong><br>${msg.message}<span class="timestamp">${timeString}</span>`;
-  messagesDiv.appendChild(div);
-
-  // Scroll to bottom of the messages div
-  messagesDiv.scrollTop = messagesDiv.scrollHeight;
 });
 
-// Optional: You can also listen for 'child_removed' if individual messages could be deleted
-// However, for a full chat clear using .remove() on the parent, clearing innerHTML is often enough.
-db.ref("messages").on("child_removed", function(oldSnapshot) {
-    console.log("A message with key", oldSnapshot.key, "was removed.");
-    // If you were deleting individual messages, you'd find and remove the specific div here.
-    // For a full clear, the messagesDiv.innerHTML = '' already handles this.
-});
+// Helper to update user info on UI
+function updateUserInfoUI(user) {
+  userIdSpan.textContent = user.uid;
+  userPhoneSpan.textContent = user.phoneNumber || "N/A";
+  userEmailSpan.textContent = user.email || "N/A";
+  // Re-fetch username from DB to ensure UI is updated if linked
+  const userRef = ref(database, 'users/' + user.uid);
+  onValue(userRef, (snapshot) => {
+    const userData = snapshot.val();
+    userDbUsernameSpan.textContent = userData && userData.username ? userData.username : "Not set";
+  }, {
+    onlyOnce: true
+  });
+}
 
-
+// Helper to display messages
+function displayMessage(msg) {
+  messageDiv.textContent = msg;
+}
