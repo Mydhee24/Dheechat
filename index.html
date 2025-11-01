@@ -1,25 +1,102 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Dhee Chat App</title>
   <meta charset="UTF-8">
+  <title>My Cool Chat App</title>
   <style>
-    body { font-family: Arial; max-width: 400px; margin: 40px auto; }
-    #messages { border: 1px solid #ccc; height: 300px; overflow-y: scroll; padding: 10px; }
-    input, button { padding: 8px; margin: 5px 0; width: 100%; }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f2f5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h2 {
+      color: #333;
+    }
+
+    #messages {
+      width: 100%;
+      max-width: 400px;
+      height: 400px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      background-color: #fff;
+      overflow-y: scroll;
+      padding: 10px;
+      margin-bottom: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .message {
+      margin: 5px 0;
+      padding: 8px 12px;
+      border-radius: 15px;
+      max-width: 70%;
+      word-wrap: break-word;
+      display: inline-block;
+    }
+
+    .my-message {
+      background-color: #007bff;
+      color: #fff;
+      align-self: flex-end;
+      float: right;
+      clear: both;
+    }
+
+    .other-message {
+      background-color: #e5e5ea;
+      color: #000;
+      float: left;
+      clear: both;
+    }
+
+    #inputArea {
+      display: flex;
+      flex-direction: column;
+      max-width: 400px;
+      width: 100%;
+    }
+
+    input, button {
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+      width: 100%;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
   </style>
 </head>
 <body>
-  <h2>💬 Dhee Chat</h2>
+  <h2>💬 My Cool Chat App</h2>
   <div id="messages"></div>
-  <input id="nameInput" placeholder="Your name">
-  <input id="messageInput" placeholder="Your message">
-  <button id="sendBtn">Send</button>
+
+  <div id="inputArea">
+    <input id="nameInput" placeholder="Your name">
+    <input id="messageInput" placeholder="Type a message">
+    <button id="sendBtn">Send</button>
+  </div>
 
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js"></script>
-
   <script src="app.js"></script>
 </body>
 </html>
