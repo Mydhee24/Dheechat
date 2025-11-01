@@ -2,7 +2,7 @@
 const firebaseConfig = {
   apiKey: "AIzaSyD8H7djMIWuXB8f0t37S0VwL8xm39jaWdI",
   authDomain: "dheechat-1258a.firebaseapp.com",
-  databaseURL: "https://dheechat-1258a.firebaseio.com",
+  databaseURL: "https://dheechat-1258a-default-rtdb.firebaseio.com/",
   projectId: "dheechat-1258a",
   storageBucket: "dheechat-1258a.appspot.com",
   messagingSenderId: "893019112248",
@@ -34,4 +34,5 @@ db.ref("messages").on("child_added", function(snapshot) {
   div.textContent = msg.name + ": " + msg.message;
   messagesDiv.appendChild(div);
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
 });
