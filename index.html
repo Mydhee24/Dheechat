@@ -50,7 +50,7 @@
         }
         @media (min-width: 768px) {
             #chat-app {
-                /* Reduced to 600px */
+                /* Set to 600px as requested earlier */
                 max-width: 600px; 
                 margin: 0 auto;
             }
@@ -63,7 +63,7 @@
 
         <div id="login-screen" class="flex flex-col items-center justify-center p-8 text-center flex-grow">
             <h2 class="text-4xl font-extrabold mb-4 text-accent-blue">Secure Chat Login</h2>
-            <p class="text-gray-400 mb-8 max-w-sm">Sign in with your Google account to join the conversation and identify yourself by your Gmail address.</p>
+            <p class="text-gray-400 mb-8 max-w-sm">Sign in with your Google account to join the conversation.</p>
             <button id="google-sign-in-button" 
                     class="flex items-center justify-center bg-google-red hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl transition duration-300 shadow-xl transform hover:scale-[1.03] active:scale-95">
                 <svg class="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="currentColor">
@@ -114,6 +114,19 @@
                         <p class="text-sm text-gray-400 mb-2">Logged in as:</p>
                         <p id="menu-user-email" class="text-white font-medium break-all"></p>
                         
+                        <div class="mt-4">
+                            <label for="username-input" class="block text-sm font-medium text-gray-400">Set Username (Max 8 Chars)</label>
+                            <div class="flex mt-1">
+                                <input type="text" id="username-input" maxlength="8" placeholder="e.g., dheeuser"
+                                       class="flex-grow p-2 rounded-l-lg bg-primary-dark border border-gray-700 focus:outline-none focus:ring-1 focus:ring-accent-green text-white"
+                                       autocomplete="off">
+                                <button id="save-username-button"
+                                        class="bg-accent-green text-white px-3 rounded-r-lg hover:bg-green-600 transition duration-200 font-semibold text-sm">
+                                    Save
+                                </button>
+                            </div>
+                        </div>
+
                         <button id="switch-to-public-chat-button"
                                 class="mt-4 w-full text-center py-2 px-3 text-sm rounded-lg bg-accent-blue hover:bg-blue-600 transition duration-200 text-white font-semibold">
                             Switch to Public Chat
@@ -162,7 +175,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, setLogLevel, getDocs, deleteDoc, setDoc, doc, limit, orderBy } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, setLogLevel, getDocs, deleteDoc, setDoc, doc, limit, orderBy, getDoc } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
         // =========================================================================
         // ✅ Your Firebase Configuration
@@ -195,8 +208,9 @@
         let auth;
         let currentUserId = null;
         let currentUserEmail = null;
+        let currentUserDisplayName = 'Anonymous'; // NEW: Stores the 8-char name
         let currentChatType = 'public'; // 'public' or 'private'
-        let currentRecipient = null; // { userId, email } for private chat
+        let currentRecipient = null; // { userId, email, displayName } for private chat
         let unsubscribeMessages = null; // Function to stop the message listener
         
         // Global state for notifications
@@ -223,6 +237,9 @@
         const contactList = document.getElementById('contact-list');
         const switchToPublicChatButton = document.getElementById('switch-to-public-chat-button');
         const clearCurrentChatButton = document.getElementById('clear-current-chat-button');
+        // NEW Username Elements
+        const usernameInput = document.getElementById('username-input');
+        const saveUsernameButton = document.getElementById('save-username-button');
         // -------------------------
 
         // --- Utility Functions ---
@@ -248,10 +265,15 @@
             chatScreen.classList.toggle('hidden', !showChat);
         }
 
-        // Extracts the name part of the email for display
-        function getUserDisplayName(email) {
-            if (!email) return 'Anonymous';
-            return email.split('@')[0];
+        // NEW: Extracts the name for display (Priority: 1. Saved Name, 2. Short Email)
+        function getChatDisplay(userDoc) {
+            if (!userDoc || (!userDoc.displayName && !userDoc.email)) return 'Anonymous';
+            // Prioritize the user-set displayName if it exists
+            if (userDoc.displayName) {
+                return userDoc.displayName; 
+            }
+            // Otherwise, fall back to the part of the email before the @
+            return userDoc.email ? userDoc.email.split('@')[0] : 'Anonymous';
         }
 
         // --- Menu Control Functions ---
@@ -289,22 +311,76 @@
         async function upsertUser(user) {
             if (!user.uid || !user.email) return;
             try {
-                // Path: /users/{userId}
                 const userDocRef = doc(db, 'users', user.uid);
+                
+                // 1. Write/Merge basic user data
                 await setDoc(userDocRef, {
                     userId: user.uid,
                     email: user.email,
-                    displayName: getUserDisplayName(user.email), // Save the display name
                     lastSeen: Date.now()
                 }, { merge: true });
+
+                // 2. Read back to get saved display name
+                const userDoc = await getDoc(userDocRef);
+                const userData = userDoc.data();
+                
+                // 3. Update global state and UI elements
+                currentUserDisplayName = getChatDisplay(userData);
+                usernameInput.value = userData?.displayName || '';
+                
+                userEmailDisplay.textContent = currentUserEmail || 'Signed In';
+                menuUserEmail.textContent = `${currentUserDisplayName} (${currentUserEmail})` || 'Signed In'; 
+
             } catch (error) {
                 console.error("Error upserting user data:", error);
             }
         }
         
+        async function handleSetDisplayName() {
+            const newName = usernameInput.value.trim().substring(0, 8); // Ensure max 8 chars
+            
+            if (!newName || newName.length < 3) {
+                alert("Username must be 3-8 characters long.");
+                return;
+            }
+            if (!currentUserId) {
+                alert("You must be logged in to set a username.");
+                return;
+            }
+            
+            try {
+                const userDocRef = doc(db, 'users', currentUserId);
+                await setDoc(userDocRef, {
+                    displayName: newName,
+                    lastSeen: Date.now() 
+                }, { merge: true });
+                
+                currentUserDisplayName = newName;
+                alert(`Username saved as: ${newName}`);
+                
+                // Refresh UI elements
+                menuUserEmail.textContent = `${currentUserDisplayName} (${currentUserEmail})` || 'Signed In'; 
+                
+                // Re-render contact list and current chat title to use the new name
+                if(currentChatType === 'private' && currentRecipient) {
+                    // Update currentRecipient object with the new display name
+                    currentRecipient.displayName = newName;
+                    switchToPrivateChat(currentRecipient);
+                } else {
+                    switchToPublicChat();
+                }
+                listenForContacts(); 
+                
+            } catch (error) {
+                console.error("Error setting display name:", error);
+                alert("Failed to save username. Check console for details.");
+            }
+        }
+
+        
         function listenForContacts() {
-            // Path: /users
             const usersRef = collection(db, 'users');
+            // Listen for changes and update the contact list
             onSnapshot(usersRef, (snapshot) => {
                 contactList.innerHTML = '';
                 snapshot.forEach(doc => {
@@ -329,16 +405,18 @@
             const isSelected = currentRecipient && currentRecipient.userId === contact.userId;
             
             contactDiv.className = `p-3 rounded-lg cursor-pointer transition duration-150 break-all ${isSelected ? 'bg-accent-green bg-opacity-30 border border-accent-green' : 'bg-secondary-dark hover:bg-gray-700'}`;
-            // Use display name instead of full email
-            contactDiv.innerHTML = `<p class="text-sm font-semibold">${getUserDisplayName(contact.email)}</p>`; 
+            // Use display name for the contact list
+            contactDiv.innerHTML = `<p class="text-sm font-semibold">${getChatDisplay(contact)}</p>`; 
             contactDiv.setAttribute('data-user-id', contact.userId);
             contactDiv.setAttribute('data-email', contact.email);
+            contactDiv.setAttribute('data-display-name', contact.displayName || '');
             
             contactDiv.addEventListener('click', () => {
                 const userId = contactDiv.getAttribute('data-user-id');
                 const email = contactDiv.getAttribute('data-email');
+                const displayName = contactDiv.getAttribute('data-display-name');
                 
-                switchToPrivateChat({ userId, email });
+                switchToPrivateChat({ userId, email, displayName });
                 closeMenu();
             });
             
@@ -364,19 +442,16 @@
         }
 
         function setupAuthListener() {
-            onAuthStateChanged(auth, (user) => {
+            onAuthStateChanged(auth, async (user) => {
                 loadingIndicator.classList.add('hidden');
                 if (user) {
                     currentUserId = user.uid;
                     currentUserEmail = user.email;
 
-                    upsertUser(user); 
+                    await upsertUser(user); // Fetch/set display name
                     listenForContacts(); 
-                    requestNotificationPermission(); // Request permission upon login
+                    requestNotificationPermission();
 
-                    userEmailDisplay.textContent = currentUserEmail || 'Signed In';
-                    menuUserEmail.textContent = currentUserEmail || 'Signed In'; 
-                    
                     switchView(true);
 
                     sendButton.disabled = false;
@@ -388,6 +463,7 @@
                 } else {
                     currentUserId = null;
                     currentUserEmail = null;
+                    currentUserDisplayName = 'Anonymous';
                     if (unsubscribeMessages) {
                         unsubscribeMessages();
                         unsubscribeMessages = null;
@@ -420,9 +496,10 @@
             if (unsubscribeMessages) unsubscribeMessages();
             currentChatType = 'private';
             currentRecipient = recipient;
-            // Use display name for the chat title
-            chatTitle.textContent = `Private Chat with ${getUserDisplayName(recipient.email)}`; 
-            clearCurrentChatButton.textContent = `Clear Chat with ${getUserDisplayName(recipient.email)}`;
+            
+            // CRITICAL UPDATE: Only show the recipient's display name
+            chatTitle.textContent = `${getChatDisplay(recipient)}`; 
+            clearCurrentChatButton.textContent = `Clear Chat with ${getChatDisplay(recipient)}`;
             listenForMessages(); 
             listenForContacts(); 
         }
@@ -448,9 +525,9 @@
                 : 'bg-secondary-dark text-gray-100 rounded-tl-none'
             }`;
             
-            // Username/Email - Use Display Name
+            // Username/Email - Use the saved senderDisplayName from the message
             const emailSpan = document.createElement('span');
-            emailSpan.textContent = getUserDisplayName(message.email) || 'Anonymous'; 
+            emailSpan.textContent = message.senderDisplayName || getChatDisplay(message) || 'Anonymous'; 
             emailSpan.className = `block text-xs font-bold mb-1 ${isMe ? 'text-blue-200' : 'text-accent-green'}`;
             bubble.appendChild(emailSpan);
             
@@ -505,10 +582,9 @@
                             // Only notify for new messages not sent by me
                             if (message.userId !== currentUserId) { 
                                 if (notificationPermission === 'granted') {
-                                    const title = currentChatType === 'public' ? 'New Public Message' : `New Private Message from ${getUserDisplayName(message.email)}`;
+                                    const title = currentChatType === 'public' ? 'New Public Message' : `New Private Message from ${message.senderDisplayName || getChatDisplay(message)}`;
                                     new Notification(title, {
                                         body: message.text,
-                                        // icon: '/favicon.ico' // Uncomment and adjust if you have a favicon
                                     });
                                 }
                             }
@@ -553,6 +629,7 @@
                     await addDoc(collection(db, messagesCollectionPath), {
                         userId: currentUserId,
                         email: currentUserEmail,
+                        senderDisplayName: currentUserDisplayName, // NEW: Save the 8-char name with the message
                         text: text,
                         timestamp: Date.now()
                     });
@@ -566,7 +643,7 @@
         }
 
         async function handleClearCurrentChat() {
-            let chatName = currentChatType === 'public' ? 'Public Chat' : `Chat with ${getUserDisplayName(currentRecipient.email)}`;
+            let chatName = currentChatType === 'public' ? 'Public Chat' : `Chat with ${getChatDisplay(currentRecipient)}`;
             
             if (!confirm(`Are you sure you want to permanently delete ALL messages from ${chatName}? This cannot be undone.`)) {
                 return;
@@ -602,7 +679,6 @@
                 
                 await Promise.all(deletePromises);
                 
-                // Provide feedback for successful deletion
                 console.log(`Successfully deleted ${deletePromises.length} messages from ${chatName}.`);
                 if (deletePromises.length >= 500) {
                      alert(`Cleared ${deletePromises.length} messages. A large chat may require running the clear operation again.`);
@@ -613,9 +689,8 @@
                 closeMenu();
 
             } catch (error) {
-                // Critical logging for the user to check their console
                 console.error("CRITICAL FIREBASE PERMISSION ERROR when clearing chat:", error);
-                alert(`Failed to clear chat for ${chatName}. Please check the Firebase Console logs for security rule or permission errors.`);
+                alert(`Failed to clear chat for ${chatName}. Please ENSURE your Firestore Security Rules are updated as instructed.`);
             }
         }
 
@@ -656,6 +731,15 @@
         menuButton.addEventListener('click', openMenu);
         closeMenuButton.addEventListener('click', closeMenu);
         sideMenu.addEventListener('click', handleMenuClick);
+        
+        // NEW Username Listener
+        saveUsernameButton.addEventListener('click', handleSetDisplayName);
+        usernameInput.addEventListener('keydown', (e) => {
+             if (e.key === 'Enter') {
+                e.preventDefault();
+                handleSetDisplayName();
+             }
+        });
         
         // Chat Switching/Clearing Listeners
         switchToPublicChatButton.addEventListener('click', () => {
