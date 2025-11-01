@@ -11,8 +11,8 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+const app = firebase.initializeApp(firebaseConfig); // Assign to 'app' for clarity, though not strictly needed for compat libs
+const db = firebase.database(); // Get a reference to the Realtime Database service
 
 // ===== DOM elements =====
 const messagesDiv = document.getElementById("messages");
@@ -20,23 +20,48 @@ const nameInput = document.getElementById("nameInput");
 const messageInput = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
 
+// Store the user's name once it's entered to prevent issues with changing nameInput mid-session
+let userName = "";
+
+// ===== Event listener for the name input to store the name =====
+nameInput.addEventListener('change', (event) => {
+    userName = event.target.value.trim();
+});
+
+
 // ===== Send message =====
 sendBtn.onclick = function() {
-  const name = nameInput.value.trim();
+  // Use the stored userName for consistency
+  if (!userName) {
+    alert("Please enter your name first!");
+    nameInput.focus(); // Bring focus back to the name input
+    return;
+  }
+
   const message = messageInput.value.trim();
 
-  // Prevent empty name or message
-  if (!name) return alert("Please enter your name!");
-  if (!message) return;
+  // Prevent truly empty messages
+  if (!message) {
+    console.warn("Attempted to send an empty message.");
+    return;
+  }
 
   // Always push to "messages" node
   db.ref("messages").push({
-    name,
-    message,
-    timestamp: Date.now()
+    name: userName, // Use the stored user name
+    message: message,
+    timestamp: firebase.database.ServerValue.TIMESTAMP // Use server timestamp for consistency
+  })
+  .then(() => {
+    console.log("Message sent successfully!");
+    messageInput.value = ""; // Clear input only on successful send
+    messageInput.focus(); // Keep focus on message input for quick replies
+  })
+  .catch((error) => {
+    console.error("Error sending message to Firebase:", error);
+    alert("Failed to send message. Please check the console for details.");
+    // Optionally re-enable the send button if it was disabled, or show specific error UI
   });
-
-  messageInput.value = "";
 };
 
 // ===== Listen for new messages =====
@@ -45,14 +70,18 @@ db.ref("messages").orderByChild("timestamp").on("child_added", function(snapshot
   const div = document.createElement("div");
   div.classList.add("message");
 
-  // Your messages vs others
-  if (msg.name === nameInput.value.trim()) {
+  // Determine if it's 'my-message' based on the stored userName
+  if (userName && msg.name === userName) { // Ensure userName is set before comparison
     div.classList.add("my-message");
   } else {
     div.classList.add("other-message");
   }
 
-  div.textContent = `${msg.name}: ${msg.message}`;
+  // Display timestamp (optional, but good for chat)
+  const date = new Date(msg.timestamp);
+  const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  div.innerHTML = `<strong>${msg.name}</strong><br>${msg.message}<span style="font-size: 0.7em; color: #666; display: block; text-align: right;">${timeString}</span>`;
   messagesDiv.appendChild(div);
 
   // Scroll to bottom
