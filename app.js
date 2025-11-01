@@ -11,27 +11,37 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = firebase.initializeApp(firebaseConfig); // Assign to 'app' for clarity, though not strictly needed for compat libs
-const db = firebase.database(); // Get a reference to the Realtime Database service
+const app = firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
 // ===== DOM elements =====
 const messagesDiv = document.getElementById("messages");
 const nameInput = document.getElementById("nameInput");
 const messageInput = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
+const clearChatBtn = document.getElementById("clearChatBtn"); // NEW: Get the Clear Chat button
 
-// Store the user's name once it's entered to prevent issues with changing nameInput mid-session
+// Store the user's name once it's entered for consistency across messages
 let userName = "";
+
+// ===== Optional: Load user name from localStorage on startup =====
+document.addEventListener('DOMContentLoaded', () => {
+    const storedName = localStorage.getItem('dheeChatUserName');
+    if (storedName) {
+        nameInput.value = storedName;
+        userName = storedName;
+    }
+});
 
 // ===== Event listener for the name input to store the name =====
 nameInput.addEventListener('change', (event) => {
     userName = event.target.value.trim();
+    // Optional: Store name in localStorage to persist across sessions
+    localStorage.setItem('dheeChatUserName', userName);
 });
 
-
-// ===== Send message =====
+// ===== Send message function =====
 sendBtn.onclick = function() {
-  // Use the stored userName for consistency
   if (!userName) {
     alert("Please enter your name first!");
     nameInput.focus(); // Bring focus back to the name input
@@ -46,7 +56,7 @@ sendBtn.onclick = function() {
     return;
   }
 
-  // Always push to "messages" node
+  // Push the message to the "messages" node in Realtime Database
   db.ref("messages").push({
     name: userName, // Use the stored user name
     message: message,
@@ -60,9 +70,25 @@ sendBtn.onclick = function() {
   .catch((error) => {
     console.error("Error sending message to Firebase:", error);
     alert("Failed to send message. Please check the console for details.");
-    // Optionally re-enable the send button if it was disabled, or show specific error UI
   });
 };
+
+// ===== NEW: Clear Chat button functionality =====
+clearChatBtn.onclick = function() {
+  // Ask for user confirmation before performing a destructive action
+  if (confirm("Are you sure you want to clear the entire chat history for everyone? This cannot be undone.")) {
+    db.ref("messages").remove() // Removes the entire "messages" node
+      .then(() => {
+        console.log("Chat history cleared successfully!");
+        messagesDiv.innerHTML = ''; // Immediately clear the displayed messages from the UI
+      })
+      .catch((error) => {
+        console.error("Error clearing chat history:", error);
+        alert("Failed to clear chat. Please check the console for details.");
+      });
+  }
+};
+
 
 // ===== Listen for new messages =====
 db.ref("messages").orderByChild("timestamp").on("child_added", function(snapshot) {
@@ -71,19 +97,27 @@ db.ref("messages").orderByChild("timestamp").on("child_added", function(snapshot
   div.classList.add("message");
 
   // Determine if it's 'my-message' based on the stored userName
-  if (userName && msg.name === userName) { // Ensure userName is set before comparison
+  if (userName && msg.name === userName) {
     div.classList.add("my-message");
   } else {
     div.classList.add("other-message");
   }
 
-  // Display timestamp (optional, but good for chat)
   const date = new Date(msg.timestamp);
   const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  div.innerHTML = `<strong>${msg.name}</strong><br>${msg.message}<span style="font-size: 0.7em; color: #666; display: block; text-align: right;">${timeString}</span>`;
+  // Use spans for better styling control of timestamp
+  div.innerHTML = `<strong>${msg.name}</strong><br>${msg.message}<span class="timestamp">${timeString}</span>`;
   messagesDiv.appendChild(div);
 
-  // Scroll to bottom
+  // Scroll to bottom of the messages div
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
+});
+
+// Optional: You can also listen for 'child_removed' if individual messages could be deleted
+// However, for a full chat clear using .remove() on the parent, clearing innerHTML is often enough.
+db.ref("messages").on("child_removed", function(oldSnapshot) {
+    console.log("A message with key", oldSnapshot.key, "was removed.");
+    // If you were deleting individual messages, you'd find and remove the specific div here.
+    // For a full clear, the messagesDiv.innerHTML = '' already handles this.
 });
