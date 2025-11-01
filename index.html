@@ -26,19 +26,13 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
         
-        .chat-container {
-            /* Calculate height based on full screen minus header and footer/input area */
-            height: calc(100vh - 8rem); 
-            overflow-y: auto;
-            scroll-behavior: smooth;
-        }
-
-        .chat-container::-webkit-scrollbar {
+        /* General scrollbar styling */
+        .overflow-y-auto::-webkit-scrollbar {
             width: 8px;
             background-color: transparent;
         }
 
-        .chat-container::-webkit-scrollbar-thumb {
+        .overflow-y-auto::-webkit-scrollbar-thumb {
             background-color: #4b5563;
             border-radius: 4px;
         }
@@ -50,7 +44,8 @@
         }
         @media (min-width: 768px) {
             #chat-app {
-                max-width: 700px;
+                /* Set to 600px */
+                max-width: 600px; 
                 margin: 0 auto;
             }
         }
@@ -61,96 +56,73 @@
     <div id="chat-app" class="flex flex-col bg-primary-dark shadow-2xl rounded-lg overflow-hidden w-full h-full md:h-[90vh]">
 
         <div id="login-screen" class="flex flex-col items-center justify-center p-8 text-center flex-grow">
-            <h2 class="text-4xl font-extrabold mb-4 text-accent-blue">Secure Chat Login</h2>
-            <p class="text-gray-400 mb-8 max-w-sm">Sign in with your Google account to join the conversation and identify yourself by your Gmail address.</p>
-            <button id="google-sign-in-button" 
-                    class="flex items-center justify-center bg-google-red hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl transition duration-300 shadow-xl transform hover:scale-[1.03] active:scale-95">
-                <svg class="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M22.56 12.25c0-.78-.07-1.5-.2-2.2H12v4.16h5.88c-.26 1.42-1.04 2.68-2.3 3.53l-2.45 2.02v3.09h3.76c2.2-2.03 3.57-5.01 3.57-8.2zm-12.72 10.15c2.94 0 5.46-1.04 7.28-2.8l-3.76-3.09c-1.04.7-2.36 1.13-3.86 1.13-2.98 0-5.5-1.9-6.36-4.49H3.7v3.08c1.78 3.51 5.38 5.97 9.08 5.97zM4.3 9.4c-.16-.5-.25-1.03-.25-1.58s.09-1.08.25-1.58V3.24H.54c-.67 1.34-1.04 2.87-1.04 4.58s.37 3.24 1.04 4.58l3.76-3.08zM12 3.86c1.82 0 3.44.62 4.74 1.84l3.29-3.29C17.46.74 14.8.0 12.0.0c-3.7 0-7.3 2.46-9.08 5.97l3.76 3.08C6.5 5.76 9.02 3.86 12 3.86z"/>
+            <h1 class="text-3xl font-bold mb-4">Secure Chat</h1>
+            <p class="mb-6 text-gray-400">Sign in to join the conversation.</p>
+            
+            <button id="google-sign-in-button" class="bg-google-red hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 flex items-center justify-center">
+                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12.022 10.375c3.235 0 5.148 1.488 5.148 1.488s.098 3.55-5.148 3.55c-3.15 0-5.698-1.55-5.698-1.55l.022-.047c-.015-.027-.02-.045-.034-.067-1.1-2.073-1.12-4.135-1.12-4.135 0 0 2.275-3.328 6.702-3.328zm-6.273 4.25c.015.027.02.045.034.067 1.1 2.073 1.12 4.135 1.12 4.135 0 0-2.275 3.328-6.702 3.328-3.235 0-5.148-1.488-5.148-1.488s-.098-3.55 5.148-3.55c3.15 0 5.698 1.55 5.698 1.55l-.022.047zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-4.35 15.65C8.42 16.7 9.8 16 12 16s3.58.7 4.35 1.65c-1.28.66-2.73 1.05-4.35 1.05s-3.07-.39-4.35-1.05z"/>
                 </svg>
                 Sign in with Google
             </button>
+            <div id="loading-indicator" class="mt-4 text-accent-blue hidden">
+                Loading user data...
+            </div>
         </div>
 
         <div id="chat-screen" class="hidden flex-col flex-grow">
             
-            <header class="bg-secondary-dark p-4 shadow-xl flex justify-between items-center z-20 relative">
+            <header class="bg-secondary-dark p-4 shadow-xl flex justify-between items-center z-20 relative flex-shrink-0">
                 <div class="flex items-center">
-                    <button id="menu-button"
-                            class="p-2 rounded-full hover:bg-gray-700 transition duration-200 focus:outline-none mr-3">
-                        <svg class="w-6 h-6 text-gray-100" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                        </svg>
+                    <button id="menu-button" class="text-gray-400 hover:text-white mr-4">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                     </button>
-                    <h1 id="chat-title" class="text-xl font-bold text-accent-green truncate">
-                        Public Chat
-                    </h1>
+                    <h2 id="chat-title" class="text-xl font-semibold">Public Chat</h2>
                 </div>
-                
-                <div class="flex items-center">
-                    <span id="user-email-display" class="font-normal text-sm text-gray-400 mr-4 hidden md:block truncate max-w-xs"></span>
-                    <button id="sign-out-button"
-                            class="text-xs text-gray-400 hover:text-red-500 transition duration-200 p-2 rounded-lg">
-                        Sign Out
-                    </button>
-                </div>
+                <div class="text-sm text-gray-400" id="user-email-display">Loading...</div>
             </header>
 
             <div id="side-menu" 
                 class="fixed inset-0 z-30 bg-black bg-opacity-70 transition-opacity duration-300 opacity-0 pointer-events-none md:w-full">
-                
-                <div class="absolute left-0 top-0 h-full w-64 bg-primary-dark shadow-2xl transform -translate-x-full transition-transform duration-300 flex flex-col">
-                    <div class="p-4 bg-secondary-dark flex justify-between items-center border-b border-gray-700">
-                        <h3 class="text-lg font-semibold text-white">Menu & Contacts</h3>
-                        <button id="close-menu-button" class="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                            </svg>
-                        </button>
-                    </div>
+                <div class="absolute inset-y-0 left-0 w-64 bg-primary-dark shadow-2xl p-6 transform -translate-x-full transition-transform duration-300 flex flex-col h-full">
+                    <button id="close-menu-button" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                    <h3 class="text-xl font-bold mb-4 border-b border-gray-700 pb-2">User Settings</h3>
+                    
+                    <p id="menu-user-email" class="text-sm text-gray-400 mb-4 break-all">Loading...</p>
 
-                    <div class="p-4 border-b border-gray-700">
-                        <p class="text-sm text-gray-400 mb-2">Logged in as:</p>
-                        <p id="menu-user-email" class="text-white font-medium break-all"></p>
-                        
-                        <button id="switch-to-public-chat-button"
-                                class="mt-4 w-full text-center py-2 px-3 text-sm rounded-lg bg-accent-blue hover:bg-blue-600 transition duration-200 text-white font-semibold">
-                            Switch to Public Chat
-                        </button>
-
-                        <button id="clear-current-chat-button"
-                                class="mt-2 w-full text-center py-2 px-3 text-sm rounded-lg bg-google-red hover:bg-red-700 transition duration-200 text-white font-semibold">
-                            Clear Current Chat History
-                        </button>
-
-                    </div>
-
-                    <div class="p-4 flex-grow overflow-y-auto">
-                        <h4 class="text-md font-semibold text-accent-green mb-3">Available Contacts</h4>
-                        <div id="contact-list" class="space-y-2">
-                            <div class="text-sm text-gray-500 p-2 border border-gray-800 rounded-lg" id="contact-loading">
-                                Loading contacts...
-                            </div>
+                    <div class="mb-4">
+                        <label for="username-input" class="block text-sm font-medium mb-1">Set Display Name (Max 8 chars):</label>
+                        <div class="flex space-x-2">
+                            <input type="text" id="username-input" maxlength="8" placeholder="Username" class="flex-grow bg-gray-700 text-white p-2 rounded-lg border border-gray-600 focus:outline-none focus:border-accent-blue">
+                            <button id="save-username-button" class="bg-accent-green hover:bg-green-700 text-white font-bold py-2 px-3 rounded-lg text-sm transition duration-200">Save</button>
                         </div>
                     </div>
+                    
+                    <h3 class="text-xl font-bold mb-4 border-b border-gray-700 pb-2">Contacts</h3>
+                    <button id="switch-to-public-chat-button" class="w-full text-left p-3 rounded-lg bg-accent-blue hover:bg-blue-700 transition duration-150 mb-3 font-semibold">
+                        Switch to Public Chat
+                    </button>
+                    <div id="contact-list" class="space-y-2 flex-grow overflow-y-auto mb-4">
+                        </div>
+
+                    <button id="clear-current-chat-button" class="bg-google-red hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg text-sm mb-4 transition duration-200">
+                        Clear Chat History
+                    </button>
+                    
+                    <button id="sign-out-button" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200 mt-auto">
+                        Sign Out
+                    </button>
                 </div>
             </div>
 
-            <main id="chat-messages" class="chat-container flex-grow p-4 space-y-4"></main>
+            <main id="chat-messages" class="flex-grow overflow-y-auto p-4 space-y-4 scroll-smooth"></main>
 
-            <footer class="bg-secondary-dark p-4 shadow-2xl z-10">
-                <div id="loading-indicator" class="text-center text-accent-blue mb-2 hidden">
-                    <div class="animate-spin inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full" role="status"></div>
-                    Loading messages...
-                </div>
-                <div class="flex space-x-3 items-center">
-                    
-                    <input type="text" id="message-input" placeholder="Type your message..."
-                           class="flex-grow p-3 rounded-xl bg-primary-dark border border-gray-700 focus:outline-none focus:ring-2 focus:ring-accent-blue text-gray-100 placeholder-gray-500 transition duration-300 shadow-inner"
-                           autocomplete="off" maxlength="500" disabled>
-                    <button id="send-button"
-                            class="bg-accent-blue text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:bg-blue-600 transition duration-300 transform hover:scale-[1.02] active:scale-95 disabled:bg-gray-600 disabled:shadow-none"
-                            disabled>
+            <footer class="bg-secondary-dark p-4 shadow-2xl z-10 flex-shrink-0">
+                <div class="flex space-x-2">
+                    <input type="text" id="message-input" placeholder="Type a message..." class="flex-grow bg-gray-700 text-white p-3 rounded-lg border border-gray-600 focus:outline-none focus:border-accent-blue" disabled>
+                    <button id="send-button" class="bg-accent-blue hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg disabled:opacity-50 transition duration-200" disabled>
                         Send
                     </button>
                 </div>
@@ -160,9 +132,9 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+        // ... (rest of the Firebase imports) ...
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
-        // UPDATED: Added doc, limit, orderBy for querying and better P2P logic
-        import { getFirestore, collection, addDoc, onSnapshot, query, setLogLevel, getDocs, deleteDoc, setDoc, doc, limit, orderBy } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, setLogLevel, getDocs, deleteDoc, setDoc, doc, limit, orderBy, getDoc } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
         // =========================================================================
         // ✅ Your Firebase Configuration
@@ -195,9 +167,13 @@
         let auth;
         let currentUserId = null;
         let currentUserEmail = null;
-        let currentChatType = 'public'; // 'public' or 'private'
-        let currentRecipient = null; // { userId, email } for private chat
-        let unsubscribeMessages = null; // Function to stop the message listener
+        let currentUserDisplayName = 'Anonymous'; 
+        let currentChatType = 'public'; 
+        let currentRecipient = null; 
+        let unsubscribeMessages = null; 
+        
+        let notificationPermission = 'default';
+
 
         // --- UI Elements ---
         const loginScreen = document.getElementById('login-screen');
@@ -219,6 +195,9 @@
         const contactList = document.getElementById('contact-list');
         const switchToPublicChatButton = document.getElementById('switch-to-public-chat-button');
         const clearCurrentChatButton = document.getElementById('clear-current-chat-button');
+        // Username Elements
+        const usernameInput = document.getElementById('username-input');
+        const saveUsernameButton = document.getElementById('save-username-button');
         // -------------------------
 
         // --- Utility Functions ---
@@ -244,6 +223,14 @@
             chatScreen.classList.toggle('hidden', !showChat);
         }
 
+        function getChatDisplay(userDoc) {
+            if (!userDoc || (!userDoc.displayName && !userDoc.email)) return 'Anonymous';
+            if (userDoc.displayName) {
+                return userDoc.displayName; 
+            }
+            return userDoc.email ? userDoc.email.split('@')[0] : 'Anonymous';
+        }
+
         // --- Menu Control Functions ---
         function openMenu() {
             sideMenu.classList.remove('opacity-0', 'pointer-events-none');
@@ -262,33 +249,91 @@
         }
         // -------------------------------------
 
+        // --- Notifications ---
+        function requestNotificationPermission() {
+            if ('Notification' in window) {
+                Notification.requestPermission().then(permission => {
+                    notificationPermission = permission;
+                    console.log("Notification permission:", permission);
+                }).catch(error => {
+                    console.error("Error requesting notification permission:", error);
+                });
+            }
+        }
+
         // --- Authentication and User Setup Logic ---
         
-        // NEW: Creates or updates a user document in Firestore upon login
         async function upsertUser(user) {
             if (!user.uid || !user.email) return;
             try {
-                // Path: /users/{userId}
                 const userDocRef = doc(db, 'users', user.uid);
+                
                 await setDoc(userDocRef, {
                     userId: user.uid,
                     email: user.email,
                     lastSeen: Date.now()
-                }, { merge: true }); // Use merge:true to update without overwriting other fields
+                }, { merge: true });
+
+                const userDoc = await getDoc(userDocRef);
+                const userData = userDoc.data();
+                
+                currentUserDisplayName = getChatDisplay(userData);
+                usernameInput.value = userData?.displayName || '';
+                
+                userEmailDisplay.textContent = currentUserEmail || 'Signed In';
+                menuUserEmail.textContent = `${currentUserDisplayName} (${currentUserEmail})` || 'Signed In'; 
+
             } catch (error) {
                 console.error("Error upserting user data:", error);
             }
         }
         
-        // NEW: Fetches and displays all users as contacts
+        async function handleSetDisplayName() {
+            const rawName = usernameInput.value.trim();
+            const newName = rawName.substring(0, 8); 
+            
+            if (!newName || newName.length < 3) {
+                alert("Username must be 3-8 characters long.");
+                return;
+            }
+            if (!currentUserId) {
+                alert("You must be logged in to set a username.");
+                return;
+            }
+            
+            try {
+                const userDocRef = doc(db, 'users', currentUserId);
+                await setDoc(userDocRef, {
+                    displayName: newName,
+                    lastSeen: Date.now() 
+                }, { merge: true });
+                
+                currentUserDisplayName = newName;
+                alert(`Username saved as: ${newName}`);
+                
+                menuUserEmail.textContent = `${currentUserDisplayName} (${currentUserEmail})` || 'Signed In'; 
+                
+                if(currentChatType === 'private' && currentRecipient) {
+                    currentRecipient.displayName = newName;
+                    switchToPrivateChat(currentRecipient);
+                } else {
+                    switchToPublicChat();
+                }
+                listenForContacts(); 
+                
+            } catch (error) {
+                console.error("Error setting display name:", error);
+                alert("Failed to save username. Check console for details.");
+            }
+        }
+
+        
         function listenForContacts() {
-            // Path: /users
             const usersRef = collection(db, 'users');
             onSnapshot(usersRef, (snapshot) => {
                 contactList.innerHTML = '';
                 snapshot.forEach(doc => {
                     const contact = doc.data();
-                    // Don't show the current user as a contact
                     if (contact.userId !== currentUserId) {
                         renderContact(contact);
                     }
@@ -306,24 +351,26 @@
         
         function renderContact(contact) {
             const contactDiv = document.createElement('div');
-            contactDiv.className = `p-3 rounded-lg cursor-pointer bg-secondary-dark hover:bg-gray-700 transition duration-150 break-all`;
-            contactDiv.innerHTML = `<p class="text-sm font-semibold">${contact.email}</p>`;
+            const isSelected = currentRecipient && currentRecipient.userId === contact.userId;
+            
+            contactDiv.className = `p-3 rounded-lg cursor-pointer transition duration-150 break-all ${isSelected ? 'bg-accent-green bg-opacity-30 border border-accent-green' : 'bg-secondary-dark hover:bg-gray-700'}`;
+            contactDiv.innerHTML = `<p class="text-sm font-semibold">${getChatDisplay(contact)}</p>`; 
             contactDiv.setAttribute('data-user-id', contact.userId);
             contactDiv.setAttribute('data-email', contact.email);
+            contactDiv.setAttribute('data-display-name', contact.displayName || '');
             
             contactDiv.addEventListener('click', () => {
                 const userId = contactDiv.getAttribute('data-user-id');
                 const email = contactDiv.getAttribute('data-email');
+                const displayName = contactDiv.getAttribute('data-display-name');
                 
-                // Switch to the private chat with this user
-                switchToPrivateChat({ userId, email });
+                switchToPrivateChat({ userId, email, displayName });
                 closeMenu();
             });
             
             contactList.appendChild(contactDiv);
         }
         
-        // --- Authentication Listeners remain the same ---
         async function handleGoogleSignIn() {
             const provider = new GoogleAuthProvider();
             try {
@@ -343,31 +390,28 @@
         }
 
         function setupAuthListener() {
-            onAuthStateChanged(auth, (user) => {
+            onAuthStateChanged(auth, async (user) => {
                 loadingIndicator.classList.add('hidden');
                 if (user) {
                     currentUserId = user.uid;
                     currentUserEmail = user.email;
 
-                    upsertUser(user); // NEW: Save/update user data
-                    listenForContacts(); // NEW: Start listing contacts
+                    await upsertUser(user); 
+                    listenForContacts(); 
+                    requestNotificationPermission();
 
-                    userEmailDisplay.textContent = currentUserEmail || 'Signed In';
-                    menuUserEmail.textContent = currentUserEmail || 'Signed In'; 
-                    
                     switchView(true);
 
                     sendButton.disabled = false;
                     messageInput.disabled = false;
                     messageInput.focus();
                     
-                    // Start in public chat by default
                     switchToPublicChat(); 
 
                 } else {
                     currentUserId = null;
                     currentUserEmail = null;
-                    // Stop message listener when signed out
+                    currentUserDisplayName = 'Anonymous';
                     if (unsubscribeMessages) {
                         unsubscribeMessages();
                         unsubscribeMessages = null;
@@ -380,11 +424,9 @@
         }
 
 
-        // --- Chat Switching Logic (NEW) ---
+        // --- Chat Switching Logic ---
         
-        // Helper to generate a unique chat ID for two users
         function getPrivateChatId(userId1, userId2) {
-            // Sort UIDs alphabetically to ensure the ID is always the same regardless of who starts the chat
             return [userId1, userId2].sort().join('_');
         }
 
@@ -394,16 +436,19 @@
             currentRecipient = null;
             chatTitle.textContent = 'Public Chat';
             clearCurrentChatButton.textContent = 'Clear Public Chat History';
-            listenForMessages(); // Start public listener
+            listenForMessages(); 
+            listenForContacts(); 
         }
         
         function switchToPrivateChat(recipient) {
             if (unsubscribeMessages) unsubscribeMessages();
             currentChatType = 'private';
             currentRecipient = recipient;
-            chatTitle.textContent = `Private Chat with ${recipient.email.split('@')[0]}`;
-            clearCurrentChatButton.textContent = `Clear Chat with ${recipient.email.split('@')[0]}`;
-            listenForMessages(); // Start private listener
+            
+            chatTitle.textContent = `${getChatDisplay(recipient)}`; 
+            clearCurrentChatButton.textContent = `Clear Chat with ${getChatDisplay(recipient)}`;
+            listenForMessages(); 
+            listenForContacts(); 
         }
 
         // --- Message Rendering and Firestore ---
@@ -427,19 +472,16 @@
                 : 'bg-secondary-dark text-gray-100 rounded-tl-none'
             }`;
             
-            // Username/Email
             const emailSpan = document.createElement('span');
-            emailSpan.textContent = message.email || 'Anonymous';
+            emailSpan.textContent = message.senderDisplayName || getChatDisplay(message) || 'Anonymous'; 
             emailSpan.className = `block text-xs font-bold mb-1 ${isMe ? 'text-blue-200' : 'text-accent-green'}`;
             bubble.appendChild(emailSpan);
             
-            // Message Text
             const textP = document.createElement('p');
             textP.textContent = message.text;
             textP.className = 'text-base';
             bubble.appendChild(textP);
 
-            // Timestamp
             if (message.timestamp) {
                 const date = new Date(message.timestamp);
                 const time = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -457,39 +499,52 @@
             let messagesCollectionPath;
             
             if (currentChatType === 'public') {
-                // Public Path: /artifacts/{appId}/public/data/messages
                 messagesCollectionPath = `artifacts/${appId}/public/data/messages`;
                 
             } else if (currentChatType === 'private' && currentRecipient) {
-                // Private Path: /private_chats/{chatId}/messages
                 const chatId = getPrivateChatId(currentUserId, currentRecipient.userId);
                 messagesCollectionPath = `private_chats/${chatId}/messages`;
             } else {
-                // Fallback / Log error
                 chatMessagesContainer.innerHTML = '<div class="text-red-500 text-center p-4">Error: Invalid chat state.</div>';
                 return;
             }
             
             const colRef = collection(db, messagesCollectionPath);
             
-            // Query: Limit to 100 messages, ordered by timestamp
             const messagesQuery = query(colRef, orderBy('timestamp', 'asc'), limit(100));
 
-            // Set up real-time listener and save the unsubscribe function
+            if (unsubscribeMessages) unsubscribeMessages(); 
+
             unsubscribeMessages = onSnapshot(messagesQuery, (snapshot) => {
                 
-                // Check if we were at the bottom before rendering
-                const shouldScroll = chatMessagesContainer.scrollHeight - chatMessagesContainer.scrollTop <= chatMessagesContainer.clientHeight + 50;
+                // 1. Handle Notifications
+                if (!document.hasFocus()) {
+                    snapshot.docChanges().forEach(change => {
+                        if (change.type === 'added') {
+                            const message = change.doc.data();
+                            
+                            if (message.userId !== currentUserId) { 
+                                if (notificationPermission === 'granted') {
+                                    const title = currentChatType === 'public' ? 'New Public Message' : `New Private Message from ${message.senderDisplayName || getChatDisplay(message)}`;
+                                    new Notification(title, {
+                                        body: message.text,
+                                    });
+                                }
+                            }
+                        }
+                    });
+                }
+                
+                // 2. Render Messages
+                const isNearBottom = chatMessagesContainer.scrollHeight - chatMessagesContainer.scrollTop <= chatMessagesContainer.clientHeight + 50;
 
-                // Clear container and re-render
                 chatMessagesContainer.innerHTML = '';
                 snapshot.forEach(doc => {
                     const message = doc.data();
                     renderMessage(message, message.userId === currentUserId);
                 });
                 
-                // Only scroll if the user was near the bottom
-                if (shouldScroll) {
+                if (isNearBottom) {
                     scrollToBottom();
                 }
             }, (error) => {
@@ -509,7 +564,7 @@
                 const chatId = getPrivateChatId(currentUserId, currentRecipient.userId);
                 messagesCollectionPath = `private_chats/${chatId}/messages`;
             } else {
-                return; // Cannot send message if chat state is invalid
+                return;
             }
 
             try {
@@ -517,6 +572,7 @@
                     await addDoc(collection(db, messagesCollectionPath), {
                         userId: currentUserId,
                         email: currentUserEmail,
+                        senderDisplayName: currentUserDisplayName, 
                         text: text,
                         timestamp: Date.now()
                     });
@@ -529,9 +585,8 @@
             }
         }
 
-        // Function to clear all messages in the currently active chat
         async function handleClearCurrentChat() {
-            let chatName = currentChatType === 'public' ? 'Public Chat' : `Chat with ${currentRecipient.email}`;
+            let chatName = currentChatType === 'public' ? 'Public Chat' : `Chat with ${getChatDisplay(currentRecipient)}`;
             
             if (!confirm(`Are you sure you want to permanently delete ALL messages from ${chatName}? This cannot be undone.`)) {
                 return;
@@ -550,13 +605,8 @@
 
             try {
                 const colRef = collection(db, messagesCollectionPath);
-                const snapshot = await getDocs(query(colRef));
                 
-                if (snapshot.empty) {
-                    alert(`${chatName} is already empty.`);
-                    closeMenu();
-                    return;
-                }
+                const snapshot = await getDocs(query(colRef, limit(500))); 
                 
                 const deletePromises = [];
                 snapshot.forEach((doc) => {
@@ -564,13 +614,19 @@
                 });
                 
                 await Promise.all(deletePromises);
+                
                 console.log(`Successfully deleted ${deletePromises.length} messages from ${chatName}.`);
+                if (deletePromises.length >= 500) {
+                     alert(`Cleared ${deletePromises.length} messages. A large chat may require running the clear operation again.`);
+                } else {
+                     alert(`${chatName} History Cleared!`);
+                }
+                
                 closeMenu();
-                alert(`${chatName} History Cleared!`);
 
             } catch (error) {
-                console.error("Error clearing chat:", error);
-                alert("Failed to clear chat. Check console and ensure your security rules are correct.");
+                console.error("CRITICAL FIREBASE PERMISSION ERROR when clearing chat:", error);
+                alert(`Failed to clear chat for ${chatName}. Please ENSURE your Firestore Security Rules are updated as instructed.`);
             }
         }
 
@@ -612,7 +668,16 @@
         closeMenuButton.addEventListener('click', closeMenu);
         sideMenu.addEventListener('click', handleMenuClick);
         
-        // NEW Chat Switching/Clearing Listeners
+        // Username Listener
+        saveUsernameButton.addEventListener('click', handleSetDisplayName);
+        usernameInput.addEventListener('keydown', (e) => {
+             if (e.key === 'Enter') {
+                e.preventDefault();
+                handleSetDisplayName();
+             }
+        });
+        
+        // Chat Switching/Clearing Listeners
         switchToPublicChatButton.addEventListener('click', () => {
             switchToPublicChat();
             closeMenu();
