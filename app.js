@@ -1,4 +1,4 @@
-// ===== Firebase config =====
+// ===== Firebase config (your project) =====
 const firebaseConfig = {
   apiKey: "AIzaSyD8H7djMIWuXB8f0t37S0VwL8xm39jaWdI",
   authDomain: "dheechat-1258a.firebaseapp.com",
@@ -25,10 +25,11 @@ sendBtn.onclick = function() {
   const name = nameInput.value.trim();
   const message = messageInput.value.trim();
 
-  if (!name) return alert("Enter your name");
+  // Prevent empty name or message
+  if (!name) return alert("Please enter your name!");
   if (!message) return;
 
-  // Push message to fixed "messages" path
+  // Always push to "messages" node
   db.ref("messages").push({
     name,
     message,
@@ -38,20 +39,22 @@ sendBtn.onclick = function() {
   messageInput.value = "";
 };
 
-// ===== Listen for messages =====
+// ===== Listen for new messages =====
 db.ref("messages").orderByChild("timestamp").on("child_added", function(snapshot) {
   const msg = snapshot.val();
   const div = document.createElement("div");
-  div.textContent = `${msg.name}: ${msg.message}`;
   div.classList.add("message");
 
-  // Optional: color code your messages
+  // Your messages vs others
   if (msg.name === nameInput.value.trim()) {
     div.classList.add("my-message");
   } else {
     div.classList.add("other-message");
   }
 
+  div.textContent = `${msg.name}: ${msg.message}`;
   messagesDiv.appendChild(div);
+
+  // Scroll to bottom
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
 });
