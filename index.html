@@ -136,7 +136,18 @@
                     <div class="animate-spin inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full" role="status"></div>
                     Loading messages...
                 </div>
-                <div class="flex space-x-3">
+                <div class="flex space-x-3 items-center">
+                    
+                    <input type="file" id="file-input" class="hidden" accept="image/*,video/*,.pdf,.zip,.doc,.docx" />
+                    
+                    <button id="attach-button"
+                            class="p-3 rounded-full text-gray-400 hover:text-accent-green hover:bg-gray-700 transition duration-300 disabled:opacity-50"
+                            title="Attach File" disabled>
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.574 6.574A3 3 0 1010.5 17.5l6.574-6.574a4 4 0 10-5.656-5.656L4.5 13.5a5 5 0 107.071 7.071l6.574-6.574"></path>
+                        </svg>
+                    </button>
+                    
                     <input type="text" id="message-input" placeholder="Type your message..."
                            class="flex-grow p-3 rounded-xl bg-primary-dark border border-gray-700 focus:outline-none focus:ring-2 focus:ring-accent-blue text-gray-100 placeholder-gray-500 transition duration-300 shadow-inner"
                            autocomplete="off" maxlength="500" disabled>
@@ -153,11 +164,12 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
-        // UPDATED: Added getDocs and deleteDoc for the Clear Chat feature
         import { getFirestore, collection, addDoc, onSnapshot, query, setLogLevel, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+        // ✅ NEW: Import Firebase Storage Functions
+        import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-storage.js";
 
         // =========================================================================
-        // ✅ UPDATED: Your New Firebase Configuration (from dhee-chat-e14bc)
+        // ✅ Your New Firebase Configuration (from dhee-chat-e14bc)
         // =========================================================================
         const EXTERNAL_FIREBASE_CONFIG = {
             apiKey: "AIzaSyAwfV2UkHnFJOET4yQpxXkCItP2FmTG2g8",
@@ -166,7 +178,6 @@
             storageBucket: "dhee-chat-e14bc.firebasestorage.app",
             messagingSenderId: "1091790414441",
             appId: "1:1091790414441:web:42bfa96e6b3eea8bdff8f8",
-            // measurementId is ignored as Analytics is not imported or used for chat logic
         };
         // =========================================================================
         
@@ -176,11 +187,9 @@
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         if (typeof __firebase_config !== 'undefined') {
-            // Running in Canvas environment
             firebaseConfig = JSON.parse(__firebase_config);
             appId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId;
         } else {
-            // Running on GitHub Pages or locally
             firebaseConfig = EXTERNAL_FIREBASE_CONFIG;
             appId = firebaseConfig.projectId || 'chat-default-id';
         }
@@ -188,6 +197,7 @@
         // --- Global Firebase Instances and User State ---
         let db;
         let auth;
+        let storage; // ✅ NEW: Storage instance
         let currentUserId = null;
         let currentUserEmail = null;
 
@@ -202,18 +212,21 @@
         const userEmailDisplay = document.getElementById('user-email-display');
         const loadingIndicator = document.getElementById('loading-indicator');
 
-        // --- NEW MENU ELEMENTS ---
+        // --- Menu Elements ---
         const menuButton = document.getElementById('menu-button');
         const sideMenu = document.getElementById('side-menu');
         const closeMenuButton = document.getElementById('close-menu-button');
         const menuUserEmail = document.getElementById('menu-user-email');
         const clearPublicChatButton = document.getElementById('clear-public-chat-button');
         const contactList = document.getElementById('contact-list');
+        
+        // --- NEW FILE ELEMENTS ---
+        const fileInput = document.getElementById('file-input');
+        const attachButton = document.getElementById('attach-button');
         // -------------------------
 
         // --- Utility Functions ---
 
-        // Exponential backoff retry for network operations
         async function fetchWithRetry(apiCall, maxRetries = 5) {
             for (let i = 0; i < maxRetries; i++) {
                 try {
@@ -235,21 +248,18 @@
             chatScreen.classList.toggle('hidden', !showChat);
         }
 
-        // --- Menu Control Functions (NEW) ---
+        // --- Menu Control Functions ---
         function openMenu() {
             sideMenu.classList.remove('opacity-0', 'pointer-events-none');
-            // Remove the translation class from the inner panel
             sideMenu.querySelector('div').classList.remove('-translate-x-full'); 
         }
 
         function closeMenu() {
             sideMenu.classList.add('opacity-0', 'pointer-events-none');
-            // Add the translation class back to the inner panel
             sideMenu.querySelector('div').classList.add('-translate-x-full');
         }
 
         function handleMenuClick(event) {
-            // Close menu if user clicks the dark overlay (the sideMenu container itself)
             if (event.target === sideMenu) {
                 closeMenu();
             }
@@ -258,15 +268,13 @@
 
         // --- Authentication Logic ---
 
+        // ... handleGoogleSignIn and handleSignOut remain the same ...
         async function handleGoogleSignIn() {
             const provider = new GoogleAuthProvider();
             try {
-                // IMPORTANT: signInWithPopup requires the domain to be authorized in Firebase Console
                 await signInWithPopup(auth, provider);
-                // Auth state change listener will handle view switch
             } catch (error) {
                 console.error("Google Sign-In failed:", error);
-                // Simple error display (replace with modal for better UX)
                 userEmailDisplay.textContent = 'Login Error! Check console & domain settings.';
             }
         }
@@ -283,42 +291,38 @@
             onAuthStateChanged(auth, (user) => {
                 loadingIndicator.classList.add('hidden');
                 if (user) {
-                    // User is signed in
                     currentUserId = user.uid;
                     currentUserEmail = user.email;
 
-                    // Display user email in header and menu panel (UPDATED)
                     userEmailDisplay.textContent = currentUserEmail || 'Signed In';
                     menuUserEmail.textContent = currentUserEmail || 'Signed In'; 
                     
-                    switchView(true); // Show chat screen
+                    switchView(true);
 
-                    // Enable input controls
+                    // Enable input controls (UPDATED to include attach button)
                     sendButton.disabled = false;
                     messageInput.disabled = false;
+                    attachButton.disabled = false; 
                     messageInput.focus();
                     
-                    // Start listening for messages
                     listenForMessages();
 
                 } else {
-                    // User is signed out
                     currentUserId = null;
                     currentUserEmail = null;
-                    switchView(false); // Show login screen
-                    chatMessagesContainer.innerHTML = ''; // Clear chat history
-                    closeMenu(); // Ensure menu is closed
+                    switchView(false);
+                    chatMessagesContainer.innerHTML = '';
+                    closeMenu();
                 }
             });
         }
 
 
-        // --- Message Rendering and Firestore ---
+        // --- Message Rendering and Firestore (UPDATED) ---
 
         function renderMessage(message, isMe) {
             const messageDiv = document.createElement('div');
             
-            // Flexbox container for message bubble positioning
             let classes = ['flex', 'max-w-[80%]', 'md:max-w-md'];
             
             if (isMe) {
@@ -329,7 +333,6 @@
 
             messageDiv.className = classes.join(' ');
 
-            // Bubble content styling
             const bubble = document.createElement('div');
             bubble.className = `p-3 rounded-2xl shadow-lg break-words transition duration-300 ${isMe 
                 ? 'bg-accent-blue text-white rounded-br-none' 
@@ -342,11 +345,56 @@
             emailSpan.className = `block text-xs font-bold mb-1 ${isMe ? 'text-blue-200' : 'text-accent-green'}`;
             bubble.appendChild(emailSpan);
             
-            // Message Text
-            const textP = document.createElement('p');
-            textP.textContent = message.text;
-            textP.className = 'text-base';
-            bubble.appendChild(textP);
+            // --- Message Content (File or Text) ---
+            if (message.fileURL && message.fileType) {
+                // This is a file attachment
+                const fileContainer = document.createElement('div');
+                fileContainer.className = 'mt-2';
+
+                // Check if it's an image
+                if (message.fileType.startsWith('image/')) {
+                    const img = document.createElement('img');
+                    img.src = message.fileURL;
+                    img.alt = 'Attached Image';
+                    img.className = 'max-w-full h-auto rounded-lg mb-2 cursor-pointer border border-gray-700';
+                    img.onclick = () => window.open(message.fileURL, '_blank'); // Open image in new tab
+                    fileContainer.appendChild(img);
+                } 
+                // Check if it's a video
+                else if (message.fileType.startsWith('video/')) {
+                     const video = document.createElement('video');
+                     video.src = message.fileURL;
+                     video.controls = true;
+                     video.className = 'max-w-full h-auto rounded-lg mb-2 border border-gray-700';
+                     fileContainer.appendChild(video);
+                }
+                
+                // For all other files (or images/videos that failed to load inline)
+                const fileLink = document.createElement('a');
+                fileLink.href = message.fileURL;
+                fileLink.target = '_blank';
+                fileLink.className = 'text-sm font-medium underline hover:text-accent-green flex items-center';
+                fileLink.innerHTML = `<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.574 6.574A3 3 0 1010.5 17.5l6.574-6.574a4 4 0 10-5.656-5.656L4.5 13.5a5 5 0 107.071 7.071l6.574-6.574"></path></svg> 
+                                     Download File (${message.fileType.split('/')[1] || message.fileType})`;
+                
+                fileContainer.appendChild(fileLink);
+                bubble.appendChild(fileContainer);
+
+                // Add optional text if available
+                if (message.text) {
+                    const textP = document.createElement('p');
+                    textP.textContent = message.text;
+                    textP.className = 'text-base mt-2';
+                    bubble.appendChild(textP);
+                }
+            } else {
+                // Standard text message
+                const textP = document.createElement('p');
+                textP.textContent = message.text;
+                textP.className = 'text-base';
+                bubble.appendChild(textP);
+            }
+            // ---------------------------------------
 
             // Timestamp
             if (message.timestamp) {
@@ -362,15 +410,13 @@
             chatMessagesContainer.appendChild(messageDiv);
         }
 
+        // ... listenForMessages remains the same ...
         function listenForMessages() {
-            // Collection path: /artifacts/{appId}/public/data/messages
             const messagesCollectionPath = `artifacts/${appId}/public/data/messages`;
             const colRef = collection(db, messagesCollectionPath);
             
-            // We fetch all documents and sort them locally by timestamp
             const messagesQuery = query(colRef);
 
-            // Set up real-time listener
             onSnapshot(messagesQuery, (snapshot) => {
                 let messages = [];
                 snapshot.forEach(doc => {
@@ -379,19 +425,15 @@
                     messages.push({ ...data, id: doc.id, timestamp });
                 });
 
-                // Sort messages locally by timestamp (Ascending)
                 messages.sort((a, b) => a.timestamp - b.timestamp);
 
-                // Check if we were at the bottom before rendering
                 const shouldScroll = chatMessagesContainer.scrollHeight - chatMessagesContainer.scrollTop <= chatMessagesContainer.clientHeight + 50;
 
-                // Clear container and re-render
                 chatMessagesContainer.innerHTML = '';
                 messages.forEach(message => {
                     renderMessage(message, message.userId === currentUserId);
                 });
                 
-                // Only scroll if the user was near the bottom
                 if (shouldScroll) {
                     scrollToBottom();
                 }
@@ -400,10 +442,20 @@
             });
         }
 
+        // --- Message Sending Functions (UPDATED) ---
+
+        // Original sendMessage for text only
         async function sendMessage() {
             const text = messageInput.value.trim();
             if (!text || !currentUserId || !currentUserEmail || !db) return;
 
+            await postMessageToFirestore({ text: text });
+            messageInput.value = '';
+            messageInput.focus();
+        }
+
+        // NEW: Core function to post data to Firestore
+        async function postMessageToFirestore(messageData) {
             try {
                 const messagesCollectionPath = `artifacts/${appId}/public/data/messages`;
                 
@@ -411,17 +463,12 @@
                     await addDoc(collection(db, messagesCollectionPath), {
                         userId: currentUserId,
                         email: currentUserEmail,
-                        text: text,
-                        timestamp: Date.now()
+                        timestamp: Date.now(),
+                        ...messageData // Includes text, or fileURL/fileType
                     });
                 });
-                
-                messageInput.value = '';
-                // Focus input after sending
-                messageInput.focus();
             } catch (error) {
                 console.error("Error sending message:", error);
-                // Simple feedback for the user
                 const errorEl = document.createElement('div');
                 errorEl.textContent = 'Failed to send message. Please try again.';
                 errorEl.className = 'text-red-500 text-center p-2';
@@ -430,7 +477,70 @@
             }
         }
 
-        // Function to clear all messages in the public chat (NEW)
+        // NEW: File Handling
+        function handleFileSelect() {
+            fileInput.click();
+        }
+
+        async function uploadFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Lock controls during upload
+            sendButton.disabled = true;
+            attachButton.disabled = true;
+            messageInput.disabled = true;
+            loadingIndicator.classList.remove('hidden');
+
+            const filePath = `chat_files/${currentUserId}/${Date.now()}_${file.name}`;
+            const storageRef = ref(storage, filePath);
+            const uploadTask = uploadBytesResumable(storageRef, file);
+            
+            try {
+                await new Promise((resolve, reject) => {
+                    uploadTask.on('state_changed', 
+                        (snapshot) => {
+                            // Optional: Monitor progress
+                            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                            console.log('Upload is ' + progress.toFixed(0) + '% done');
+                            loadingIndicator.textContent = `Uploading file: ${progress.toFixed(0)}%`;
+                        }, 
+                        (error) => {
+                            reject(error);
+                        }, 
+                        () => {
+                            resolve();
+                        }
+                    );
+                });
+
+                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                const optionalText = messageInput.value.trim();
+
+                // Send the URL and file metadata to Firestore
+                await postMessageToFirestore({
+                    text: optionalText,
+                    fileURL: downloadURL,
+                    fileType: file.type
+                });
+
+                messageInput.value = ''; // Clear text input
+                loadingIndicator.textContent = 'Loading messages...'; // Reset indicator text
+            } catch (error) {
+                console.error("File upload failed:", error);
+                alert("File upload failed: " + error.message);
+            } finally {
+                // Unlock controls
+                sendButton.disabled = false;
+                attachButton.disabled = false;
+                messageInput.disabled = false;
+                loadingIndicator.classList.add('hidden');
+                fileInput.value = ''; // Reset file input
+            }
+        }
+
+
+        // ... handleClearPublicChat remains the same ...
         async function handleClearPublicChat() {
             if (!confirm("Are you sure you want to permanently delete ALL messages from the Public Chat? This cannot be undone.")) {
                 return;
@@ -440,20 +550,16 @@
                 const messagesCollectionPath = `artifacts/${appId}/public/data/messages`;
                 const colRef = collection(db, messagesCollectionPath);
                 
-                // Retrieve all documents
                 const snapshot = await getDocs(query(colRef));
                 
                 const deletePromises = [];
                 snapshot.forEach((doc) => {
-                    // Collect promises to delete each document
                     deletePromises.push(deleteDoc(doc.ref));
                 });
                 
-                // Wait for all deletions to complete
                 await Promise.all(deletePromises);
                 console.log(`Successfully deleted ${deletePromises.length} public messages.`);
                 closeMenu();
-                // Firestore listener will automatically clear the UI after deletion is complete
                 alert("Public Chat History Cleared!");
 
             } catch (error) {
@@ -471,11 +577,11 @@
                 
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
+                storage = getStorage(app); // ✅ NEW: Initialize Storage
                 auth = getAuth(app);
 
                 loadingIndicator.classList.remove('hidden');
 
-                // If running in Canvas and token is available, sign in with custom token first
                 if (initialAuthToken) {
                     await fetchWithRetry(async () => {
                         await signInWithCustomToken(auth, initialAuthToken);
@@ -486,22 +592,25 @@
                 setupAuthListener();
             } catch (error) {
                 console.error("Fatal Error during app setup:", error);
-                // Hide loading and show a critical error
                 loadingIndicator.classList.add('hidden');
                 userEmailDisplay.textContent = 'CRITICAL ERROR: Check Console';
             }
         }
 
-        // --- Event Listeners (UPDATED) ---
+        // --- Event Listeners ---
         googleSignInButton.addEventListener('click', handleGoogleSignIn);
         signOutButton.addEventListener('click', handleSignOut);
         sendButton.addEventListener('click', sendMessage);
         
-        // New Menu Listeners
+        // Menu Listeners
         menuButton.addEventListener('click', openMenu);
         closeMenuButton.addEventListener('click', closeMenu);
         sideMenu.addEventListener('click', handleMenuClick);
         clearPublicChatButton.addEventListener('click', handleClearPublicChat);
+
+        // ✅ NEW File Attachment Listeners
+        attachButton.addEventListener('click', handleFileSelect);
+        fileInput.addEventListener('change', uploadFile);
 
         messageInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !sendButton.disabled) {
